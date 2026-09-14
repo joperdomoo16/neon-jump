@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "160739801274",
+    "project_id": "neon-jump-stellar",
+    "storage_bucket": "neon-jump-stellar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:160739801274:android:7d41cd9dd14d2d6c222a83",
+        "android_client_info": {
+          "package_name": "com.tustudio.neon_jump"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSSYi7CI2nIysO1Z-bswJtUaci5U2RdLY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1531 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import 'services/game_state.dart';
+import 'services/ads_manager.dart';
+import 'services/audio_manager.dart';
+import 'screens/main_menu.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set preferred orientation to portrait
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
+  // Hide system overlays for full screen experience
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
+  final gameState = GameState();
+  await gameState.init();
+  
+  await AdsManager().init();
+  await AudioManager().init();
+
+  runApp(
+    ChangeNotifierProvider.value(
+      value: gameState,
+      child: const NeonJumpApp(),
+    ),
+  );
+}
+
+class NeonJumpApp extends StatelessWidget {
+  const NeonJumpApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Neon Jump',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: Colors.black,
+        // Will apply neon specific fonts in the widgets directly
+      ),
+      home: const MainMenuScreen(),
+    );
+  }
+}
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter/material.dart';
+import '../utils/constants.dart';
+
+class AdsManager {
+  static final AdsManager _instance = AdsManager._internal();
+  factory AdsManager() => _instance;
+  AdsManager._internal();
+
+  InterstitialAd? _interstitialAd;
+  RewardedAd? _rewardedAd;
+  
+  int _gameOverCount = 0;
+  DateTime? _lastInterstitialTime;
+
+  Future<void> init() async {
+    await MobileAds.instance.initialize();
+    _loadInterstitialAd();
+    _loadRewardedAd();
+  }
+
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: Constants.interstitialAdUnitId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          _interstitialAd = ad;
+        },
+        onAdFailedToLoad: (error) {
+          _interstitialAd = null;
+        },
+      ),
+    );
+  }
+
+  void _loadRewardedAd() {
+    RewardedAd.load(
+      adUnitId: Constants.rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+        },
+        onAdFailedToLoad: (error) {
+          _rewardedAd = null;
+        },
+      ),
+    );
+  }
+
+  void showInterstitialAdIfAppropriate() {
+    _gameOverCount++;
+    if (_gameOverCount >= 2) {
+      bool canShow = true;
+      if (_lastInterstitialTime != null) {
+        final diff = DateTime.now().difference(_lastInterstitialTime!);
+        if (diff.inSeconds < 60) {
+          canShow = false;
+        }
+      }
+
+      if (canShow && _interstitialAd != null) {
+        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _loadInterstitialAd();
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+            _loadInterstitialAd();
+          },
+        );
+        _interstitialAd!.show();
+        _lastInterstitialTime = DateTime.now();
+        _gameOverCount = 0;
+      }
+    }
+  }
+
+  void showRewardedAd({required VoidCallback onReward}) {
+    if (_rewardedAd != null) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          _loadRewardedAd();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          ad.dispose();
+          _loadRewardedAd();
+        },
+      );
+      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
+        onReward();
+      });
+      _rewardedAd = null;
+    }
+  }
+}
+import 'package:flame_audio/flame_audio.dart';
+import 'package:vibration/vibration.dart';
+
+class AudioManager {
+  static final AudioManager _instance = AudioManager._internal();
+  factory AudioManager() => _instance;
+  AudioManager._internal();
+
+  bool _isAudioEnabled = true;
+
+  Future<void> init() async {
+    // Preload audio files if needed. For now we will rely on FlameAudio to cache them when first played.
+    // Example: await FlameAudio.audioCache.loadAll(['bounce.wav', 'spring.wav', 'coin.wav', 'game_over.wav']);
+  }
+
+  void toggleAudio() {
+    _isAudioEnabled = !_isAudioEnabled;
+  }
+
+  bool get isAudioEnabled => _isAudioEnabled;
+
+  void playBounce() {
+    if (_isAudioEnabled) {
+      FlameAudio.play('bounce.wav');
+    }
+  }
+
+  void playSpring() {
+    if (_isAudioEnabled) {
+      FlameAudio.play('spring.wav');
+    }
+    _lightVibrate();
+  }
+
+  void playCoin() {
+    if (_isAudioEnabled) {
+      FlameAudio.play('coin.wav');
+    }
+  }
+
+  void playGameOver() {
+    if (_isAudioEnabled) {
+      FlameAudio.play('game_over.wav');
+    }
+    _heavyVibrate();
+  }
+
+  void playNewRecord() {
+    if (_isAudioEnabled) {
+      FlameAudio.play('new_record.wav');
+    }
+    _lightVibrate();
+  }
+
+  Future<void> _lightVibrate() async {
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 50, amplitude: 50); // Light haptic
+    }
+  }
+
+  Future<void> _heavyVibrate() async {
+    if (await Vibration.hasVibrator() ?? false) {
+      Vibration.vibrate(duration: 300, amplitude: 255); // Heavy haptic
+    }
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class GameState extends ChangeNotifier {
+  int _highScore = 0;
+  int _coins = 0;
+  List<int> _ownedSkins = [0]; // Index 0 is unlocked by default
+  int _currentSkinIndex = 0;
+  
+  bool _isGameOver = false;
+  int _currentScore = 0;
+
+  int get highScore => _highScore;
+  int get coins => _coins;
+  List<int> get ownedSkins => _ownedSkins;
+  int get currentSkinIndex => _currentSkinIndex;
+  
+  bool get isGameOver => _isGameOver;
+  int get currentScore => _currentScore;
+
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _highScore = prefs.getInt('highScore') ?? 0;
+    _coins = prefs.getInt('coins') ?? 0;
+    
+    final skinsString = prefs.getString('ownedSkins');
+    if (skinsString != null && skinsString.isNotEmpty) {
+      _ownedSkins = skinsString.split(',').map((e) => int.parse(e)).toList();
+    }
+    
+    _currentSkinIndex = prefs.getInt('currentSkinIndex') ?? 0;
+    notifyListeners();
+  }
+
+  void updateScore(int newScore) {
+    _currentScore = newScore;
+    if (_currentScore > _highScore) {
+      _highScore = _currentScore;
+      _saveHighScore();
+    }
+    notifyListeners();
+  }
+
+  void addCoins(int amount) {
+    _coins += amount;
+    _saveCoins();
+    notifyListeners();
+  }
+
+  void unlockSkin(int skinIndex, int cost) {
+    if (_coins >= cost && !_ownedSkins.contains(skinIndex)) {
+      _coins -= cost;
+      _ownedSkins.add(skinIndex);
+      _saveCoins();
+      _saveOwnedSkins();
+      notifyListeners();
+    }
+  }
+
+  void equipSkin(int skinIndex) {
+    if (_ownedSkins.contains(skinIndex)) {
+      _currentSkinIndex = skinIndex;
+      _saveCurrentSkin();
+      notifyListeners();
+    }
+  }
+  
+  void setGameOver(bool gameOver) {
+    _isGameOver = gameOver;
+    notifyListeners();
+  }
+
+  void resetCurrentScore() {
+    _currentScore = 0;
+    _isGameOver = false;
+    notifyListeners();
+  }
+
+  Future<void> _saveHighScore() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('highScore', _highScore);
+  }
+
+  Future<void> _saveCoins() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('coins', _coins);
+  }
+
+  Future<void> _saveOwnedSkins() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ownedSkins', _ownedSkins.join(','));
+  }
+
+  Future<void> _saveCurrentSkin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('currentSkinIndex', _currentSkinIndex);
+  }
+}
+import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
+import 'dart:math';
+
+import 'neon_jump_game.dart';
+import '../utils/constants.dart';
+
+class Background extends Component with HasGameRef<NeonJumpGame> {
+  final Random random = Random();
+  late List<Star> stars;
+  int _currentPaletteIndex = 0;
+  
+  // Base background colors
+  Color topColor = Constants.backgroundTop;
+  Color bottomColor = Constants.backgroundBottom;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    
+    // Generate some stars for parallax
+    stars = List.generate(50, (index) {
+      return Star(
+        position: Vector2(random.nextDouble() * gameRef.size.x, random.nextDouble() * gameRef.size.y),
+        size: random.nextDouble() * 3 + 1,
+        parallaxFactor: random.nextDouble() * 0.5 + 0.1,
+      );
+    });
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    
+    // Determine palette based on score (change every 500 points)
+    int score = gameRef.gameState.currentScore;
+    int paletteIndex = (score ~/ 500) % Constants.neonColors.length;
+    
+    if (paletteIndex != _currentPaletteIndex) {
+      _currentPaletteIndex = paletteIndex;
+      // TODO: Implement smooth color transition
+      // For now, we will just tint the background
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // Fill gradient
+    final rect = Rect.fromLTWH(0, 0, gameRef.size.x, gameRef.size.y);
+    
+    // To make it follow camera nicely, we just draw it statically on the screen
+    // Wait, the background is a component in the game world, so its position is relative.
+    // We should draw it based on camera position.
+    
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [topColor, bottomColor],
+      ).createShader(rect);
+      
+    // Shift rect to match camera view
+    final cameraTopLeft = gameRef.camera.viewfinder.position - gameRef.size / 2;
+    canvas.drawRect(Rect.fromLTWH(cameraTopLeft.x, cameraTopLeft.y, gameRef.size.x, gameRef.size.y), paint);
+
+    // Draw stars
+    final starPaint = Paint()..color = Colors.white.withOpacity(0.5);
+    for (var star in stars) {
+      // Parallax effect: stars move slower than the camera
+      // Their apparent position wraps around the screen
+      double relativeY = (star.position.y - cameraTopLeft.y * star.parallaxFactor) % gameRef.size.y;
+      if (relativeY < 0) relativeY += gameRef.size.y;
+      
+      canvas.drawCircle(
+        Offset(cameraTopLeft.x + star.position.x, cameraTopLeft.y + relativeY), 
+        star.size, 
+        starPaint
+      );
+    }
+  }
+}
+
+class Star {
+  final Vector2 position;
+  final double size;
+  final double parallaxFactor;
+
+  Star({required this.position, required this.size, required this.parallaxFactor});
+}
+import 'package:flame/components.dart';
+import 'package:flame/collisions.dart';
+import 'package:flutter/material.dart';
+
+import 'neon_jump_game.dart';
+import '../services/audio_manager.dart';
+
+class Coin extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCallbacks {
+  Coin({required Vector2 position}) : super(
+    position: position,
+    radius: 10,
+    anchor: Anchor.center,
+  );
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    add(CircleHitbox());
+    
+    paint = Paint()
+      ..color = Colors.amberAccent
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 4);
+  }
+
+  void collect() {
+    AudioManager().playCoin();
+    gameRef.gameState.addCoins(1);
+    removeFromParent();
+  }
+}
+import 'package:flame/game.dart';
+import 'package:flame/events.dart';
+import 'package:flutter/material.dart';
+
+import 'player.dart';
+import 'platform_manager.dart';
+import 'background.dart';
+import '../services/game_state.dart';
+import '../services/audio_manager.dart';
+import '../services/ads_manager.dart';
+
+class NeonJumpGame extends FlameGame with HasCollisionDetection, TapCallbacks, HorizontalDragCallbacks {
+  final GameState gameState;
+  late Player player;
+  late PlatformManager platformManager;
+  late Background background;
+
+  double cameraMaxY = 0;
+  bool isPlaying = true;
+  
+  // Controls
+  double dragDirection = 0; // -1 for left, 1 for right, 0 for neutral
+
+  NeonJumpGame({required this.gameState});
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    
+    // Add background
+    background = Background();
+    add(background);
+    
+    // Add player
+    player = Player();
+    // Start player slightly above the bottom center
+    player.position = Vector2(size.x / 2, size.y - 100);
+    add(player);
+    
+    // Add platform manager
+    platformManager = PlatformManager(gameRef: this);
+    add(platformManager);
+
+    // Initial platform directly under player
+    platformManager.spawnInitialPlatform(Vector2(size.x / 2, size.y - 50));
+    
+    // Set initial camera position to center of screen
+    camera.viewfinder.position = Vector2(size.x / 2, size.y / 2);
+  }
+
+  @override
+  void update(double dt) {
+    if (!isPlaying) return;
+    super.update(dt);
+    
+    // Horizontal movement control
+    if (dragDirection < 0) {
+      player.moveLeft(dt);
+    } else if (dragDirection > 0) {
+      player.moveRight(dt);
+    } else {
+      player.stopHorizontal(dt);
+    }
+
+    // Camera logic: Only move camera UP (which means smaller Y values)
+    // If player is higher than the center of the camera, move camera up.
+    if (player.position.y < camera.viewfinder.position.y) {
+      camera.viewfinder.position.y = player.position.y;
+    }
+
+    // Update score based on max height reached
+    // Higher up means smaller Y value (since Y points down)
+    double currentHeight = (size.y - player.position.y);
+    if (currentHeight > cameraMaxY) {
+      cameraMaxY = currentHeight;
+      gameState.updateScore((cameraMaxY / 10).floor());
+    }
+
+    // Game Over condition: player falls below the screen's bottom relative to camera
+    // Camera's visible area is centered around its position
+    double cameraBottomY = camera.viewfinder.position.y + (size.y / 2);
+    if (player.position.y > cameraBottomY + player.size.y) {
+      gameOver();
+    }
+  }
+
+  void gameOver() {
+    isPlaying = false;
+    AudioManager().playGameOver();
+    gameState.setGameOver(true);
+    overlays.remove('Hud');
+    overlays.add('GameOver');
+    AdsManager().showInterstitialAdIfAppropriate();
+  }
+
+  // --- Input handling ---
+  
+  @override
+  void onHorizontalDragUpdate(DragUpdateEvent info) {
+    // Determine drag direction based on position relative to center, or just drag delta
+    // A simpler approach for hypercasual: Tap and hold left side of screen to move left, right to move right.
+    // Let's use tap down instead for more precise "hold" controls.
+    super.onHorizontalDragUpdate(info);
+  }
+
+  @override
+  void onTapDown(TapDownEvent info) {
+    // Left half = left, right half = right
+    if (info.canvasPosition.x < size.x / 2) {
+      dragDirection = -1;
+    } else {
+      dragDirection = 1;
+    }
+    super.onTapDown(info);
+  }
+
+  @override
+  void onTapUp(TapUpEvent info) {
+    dragDirection = 0;
+    super.onTapUp(info);
+  }
+  
+  @override
+  void onTapCancel(TapCancelEvent info) {
+    dragDirection = 0;
+    super.onTapCancel(info);
+  }
+  
+  // Revive logic
+  void revive() {
+    // Reset player position to slightly above the last visible highest platform
+    player.position = Vector2(size.x / 2, camera.viewfinder.position.y - 200);
+    player.velocity = Vector2.zero();
+    // Spawn a solid platform right under
+    platformManager.spawnInitialPlatform(Vector2(size.x / 2, player.position.y + 50));
+    isPlaying = true;
+    gameState.setGameOver(false);
+    overlays.remove('GameOver');
+    overlays.add('Hud');
+  }
+}
+import 'package:flame/components.dart';
+import 'package:flame/collisions.dart';
+import 'package:flutter/material.dart';
+
+import '../utils/constants.dart';
+
+abstract class Platform extends PositionComponent with CollisionCallbacks {
+  final double jumpVelocityMultiplier;
+  
+  Platform({
+    required Vector2 position, 
+    this.jumpVelocityMultiplier = 1.0,
+  }) : super(
+    position: position,
+    size: Vector2(Constants.platformWidth, Constants.platformHeight),
+    anchor: Anchor.center,
+  );
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    add(RectangleHitbox());
+  }
+
+  void onJumpedOn() {} // Hook for subclasses (e.g. Fragile platform)
+}
+
+class NormalPlatform extends Platform {
+  NormalPlatform({required super.position});
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final paint = Paint()
+      ..color = Colors.magentaAccent
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 5);
+    
+    // Draw rounded rectangle for platform
+    final rect = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(10));
+    canvas.drawRRect(rect, paint);
+  }
+}
+
+class MovingPlatform extends Platform {
+  double _time = 0;
+  final double speed;
+  final double range;
+  final double initialX;
+
+  MovingPlatform({required super.position, this.speed = 2.0, this.range = 100.0}) 
+    : initialX = position.x;
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final paint = Paint()
+      ..color = Colors.yellowAccent
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 5);
+    
+    final rect = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(10));
+    canvas.drawRRect(rect, paint);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    _time += dt;
+    // Simple sine wave movement
+    position.x = initialX + (range * 0.5) * -1 * (1 - (2 * (0.5 + 0.5 * (_time * speed).sin())));
+    // Wait, simple math for sine wave centered at initialX:
+    position.x = initialX + range * (_time * speed).sin();
+  }
+}
+
+class FragilePlatform extends Platform {
+  bool _isBroken = false;
+
+  FragilePlatform({required super.position});
+
+  @override
+  void render(Canvas canvas) {
+    if (_isBroken) return;
+    super.render(canvas);
+    final paint = Paint()
+      ..color = Colors.redAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3);
+    
+    final rect = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(10));
+    canvas.drawRRect(rect, paint);
+  }
+
+  @override
+  void onJumpedOn() {
+    _isBroken = true;
+    removeFromParent();
+    // TODO: Add breaking particles
+  }
+}
+
+class SpringPlatform extends Platform {
+  SpringPlatform({required super.position}) : super(jumpVelocityMultiplier: 1.6);
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    final paint = Paint()
+      ..color = Colors.greenAccent
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 8);
+    
+    final rect = RRect.fromRectAndRadius(size.toRect(), const Radius.circular(10));
+    canvas.drawRRect(rect, paint);
+    
+    // Draw spring indicator (simple lines)
+    final linePaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(size.x/2 - 10, size.y/2), Offset(size.x/2 + 10, size.y/2), linePaint);
+    canvas.drawLine(Offset(size.x/2 - 10, size.y/2 - 5), Offset(size.x/2 + 10, size.y/2 - 5), linePaint);
+  }
+}
+import 'package:flame/components.dart';
+import 'dart:math';
+
+import 'neon_jump_game.dart';
+import 'platform.dart';
+import 'coin.dart';
+import '../utils/constants.dart';
+
+class PlatformManager extends Component {
+  final NeonJumpGame gameRef;
+  final List<Platform> activePlatforms = [];
+  final Random random = Random();
+
+  double highestPlatformY = 0;
+  
+  PlatformManager({required this.gameRef});
+
+  void spawnInitialPlatform(Vector2 position) {
+    // Clear existing
+    for (var p in activePlatforms) {
+      p.removeFromParent();
+    }
+    activePlatforms.clear();
+
+    highestPlatformY = position.y;
+    final platform = NormalPlatform(position: position);
+    gameRef.add(platform);
+    activePlatforms.add(platform);
+    
+    // Generate initial batch
+    _generatePlatforms();
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    
+    // Check if we need more platforms
+    // If the highest platform is lower (larger Y) than the camera top view, we need to generate more
+    double cameraTopY = gameRef.camera.viewfinder.position.y - (gameRef.size.y / 2);
+    if (highestPlatformY > cameraTopY - gameRef.size.y) {
+      _generatePlatforms();
+    }
+
+    // Clean up platforms that are too far below
+    double cameraBottomY = gameRef.camera.viewfinder.position.y + (gameRef.size.y / 2);
+    activePlatforms.removeWhere((platform) {
+      if (platform.position.y > cameraBottomY + 100) {
+        platform.removeFromParent();
+        return true;
+      }
+      return false;
+    });
+  }
+
+  void _generatePlatforms() {
+    int score = gameRef.gameState.currentScore;
+    
+    // Difficulty logic based on score
+    double currentGap = Constants.initialPlatformGapY + (score / 1000) * 50;
+    if (currentGap > Constants.maxPlatformGapY) {
+      currentGap = Constants.maxPlatformGapY;
+    }
+
+    double movingProb = min(0.1 + (score / 5000), 0.5);
+    double fragileProb = min(0.05 + (score / 10000), 0.3);
+    double springProb = 0.05;
+
+    for (int i = 0; i < 10; i++) {
+      highestPlatformY -= currentGap;
+      
+      // Random X position ensuring it's reachable horizontally
+      // For simplicity, anywhere within screen width. Since screen wraps, everything is technically reachable.
+      double x = random.nextDouble() * (gameRef.size.x - Constants.platformWidth) + (Constants.platformWidth / 2);
+      
+      Vector2 pos = Vector2(x, highestPlatformY);
+      Platform newPlatform;
+      
+      double r = random.nextDouble();
+      if (r < fragileProb) {
+        newPlatform = FragilePlatform(position: pos);
+      } else if (r < fragileProb + movingProb) {
+        newPlatform = MovingPlatform(position: pos, range: gameRef.size.x * 0.4);
+      } else if (r < fragileProb + movingProb + springProb) {
+        newPlatform = SpringPlatform(position: pos);
+      } else {
+        newPlatform = NormalPlatform(position: pos);
+      }
+      
+      gameRef.add(newPlatform);
+      activePlatforms.add(newPlatform);
+
+      // 10% chance to spawn a coin above the platform
+      if (random.nextDouble() < 0.1 && newPlatform is! FragilePlatform) {
+        final coin = Coin(position: Vector2(pos.x, pos.y - 40));
+        gameRef.add(coin);
+      }
+    }
+  }
+}
+import 'package:flame/components.dart';
+import 'package:flame/collisions.dart';
+import 'package:flutter/material.dart';
+
+import 'neon_jump_game.dart';
+import 'platform.dart';
+import 'coin.dart';
+import '../utils/constants.dart';
+import '../services/audio_manager.dart';
+
+class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCallbacks {
+  Vector2 velocity = Vector2.zero();
+  
+  Player() : super(radius: 15, anchor: Anchor.center);
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    add(CircleHitbox());
+
+    // Fetch equipped skin color
+    final color = Constants.neonColors[gameRef.gameState.currentSkinIndex];
+    paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 10);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    
+    // Apply gravity
+    velocity.y += Constants.playerGravity * dt;
+    
+    // Update position
+    position += velocity * dt;
+
+    // Horizontal Screen Wrapping
+    if (position.x > gameRef.size.x + radius) {
+      position.x = -radius;
+    } else if (position.x < -radius) {
+      position.x = gameRef.size.x + radius;
+    }
+  }
+
+  void moveLeft(double dt) {
+    velocity.x -= Constants.playerAcceleration * dt;
+    if (velocity.x < -Constants.maxHorizontalVelocity) {
+      velocity.x = -Constants.maxHorizontalVelocity;
+    }
+  }
+
+  void moveRight(double dt) {
+    velocity.x += Constants.playerAcceleration * dt;
+    if (velocity.x > Constants.maxHorizontalVelocity) {
+      velocity.x = Constants.maxHorizontalVelocity;
+    }
+  }
+
+  void stopHorizontal(double dt) {
+    if (velocity.x > 0) {
+      velocity.x -= Constants.playerDeceleration * dt;
+      if (velocity.x < 0) velocity.x = 0;
+    } else if (velocity.x < 0) {
+      velocity.x += Constants.playerDeceleration * dt;
+      if (velocity.x > 0) velocity.x = 0;
+    }
+  }
+
+  @override
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollision(intersectionPoints, other);
+    
+    if (other is Platform && velocity.y > 0) { // Only collide when falling down
+      // Check if player is above the platform
+      if (position.y < other.position.y) { 
+        jump(other.jumpVelocityMultiplier);
+        other.onJumpedOn();
+      }
+    }
+    
+    if (other is Coin) {
+      other.collect();
+    }
+  }
+
+  void jump(double multiplier) {
+    velocity.y = Constants.playerJumpVelocity * multiplier;
+    
+    // Play appropriate sound
+    if (multiplier > 1.0) {
+      AudioManager().playSpring();
+    } else {
+      AudioManager().playBounce();
+    }
+    
+    // TODO: Add particle effect
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:provider/provider.dart';
+
+import '../game/neon_jump_game.dart';
+import '../services/game_state.dart';
+import '../services/ads_manager.dart';
+import '../utils/constants.dart';
+import 'game_screen.dart';
+
+class GameOver extends StatefulWidget {
+  final NeonJumpGame game;
+  const GameOver({super.key, required this.game});
+
+  @override
+  State<GameOver> createState() => _GameOverState();
+}
+
+class _GameOverState extends State<GameOver> {
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  bool _hasRevived = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: Constants.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gameState = Provider.of<GameState>(context, listen: false);
+
+    return Container(
+      color: Colors.black87,
+      child: SafeArea(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'GAME OVER',
+              style: TextStyle(
+                fontSize: 50,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(color: Colors.redAccent, blurRadius: 20),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'SCORE: ${gameState.currentScore}',
+              style: const TextStyle(
+                fontSize: 30,
+                color: Colors.cyanAccent,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'HIGH SCORE: ${gameState.highScore}',
+              style: const TextStyle(
+                fontSize: 20,
+                color: Colors.yellowAccent,
+              ),
+            ),
+            const SizedBox(height: 40),
+            
+            if (!_hasRevived)
+              _buildButton(
+                context, 
+                'REVIVE (AD)', 
+                Colors.greenAccent, 
+                () {
+                  AdsManager().showRewardedAd(
+                    onReward: () {
+                      setState(() {
+                        _hasRevived = true;
+                      });
+                      widget.game.revive();
+                    },
+                  );
+                },
+              ),
+              
+            const SizedBox(height: 20),
+            _buildButton(
+              context, 
+              'RETRY', 
+              Colors.cyanAccent, 
+              () {
+                // Replace the current GameScreen with a new GameScreen to restart
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => const GameScreen()),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 20),
+            _buildButton(
+              context, 
+              'MENU', 
+              Colors.magentaAccent, 
+              () {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+            ),
+
+            const Spacer(),
+            // Banner Ad
+            if (_isBannerAdLoaded && _bannerAd != null)
+              SizedBox(
+                width: _bannerAd!.size.width.toDouble(),
+                height: _bannerAd!.size.height.toDouble(),
+                child: AdWidget(ad: _bannerAd!),
+              )
+            else
+              const SizedBox(height: 50),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton(BuildContext context, String text, Color color, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.2),
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [Shadow(color: color, blurRadius: 10)],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:flame/game.dart';
+import 'package:provider/provider.dart';
+
+import '../game/neon_jump_game.dart';
+import '../services/game_state.dart';
+import 'hud.dart';
+import 'game_over.dart';
+
+class GameScreen extends StatefulWidget {
+  const GameScreen({super.key});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  late NeonJumpGame _game;
+
+  @override
+  void initState() {
+    super.initState();
+    final gameState = Provider.of<GameState>(context, listen: false);
+    gameState.resetCurrentScore();
+    _game = NeonJumpGame(gameState: gameState);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: WillPopScope(
+        onWillPop: () async {
+          // Confirm exit if needed, for now just allow
+          return true;
+        },
+        child: GameWidget(
+          game: _game,
+          overlayBuilderMap: {
+            'Hud': (BuildContext context, NeonJumpGame game) {
+              return const Hud();
+            },
+            'GameOver': (BuildContext context, NeonJumpGame game) {
+              return GameOver(game: game);
+            },
+          },
+          initialActiveOverlays: const ['Hud'],
+        ),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../services/game_state.dart';
+
+class Hud extends StatelessWidget {
+  const Hud({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<GameState>(
+      builder: (context, gameState, child) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Score
+                Text(
+                  '${gameState.currentScore}',
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(color: Colors.cyanAccent, blurRadius: 10),
+                    ],
+                  ),
+                ),
+                // Coins
+                Row(
+                  children: [
+                    const Icon(Icons.monetization_on, color: Colors.amberAccent, size: 30),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${gameState.coins}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(color: Colors.amberAccent, blurRadius: 10),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:provider/provider.dart';
+
+import '../services/game_state.dart';
+import '../utils/constants.dart';
+import 'game_screen.dart';
+import 'shop_screen.dart';
+
+class MainMenuScreen extends StatefulWidget {
+  const MainMenuScreen({super.key});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProviderStateMixin {
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  late AnimationController _logoAnimController;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerAd();
+    _logoAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: Constants.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    _logoAnimController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Constants.backgroundTop, Constants.backgroundBottom],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(height: 50),
+              // Logo
+              AnimatedBuilder(
+                animation: _logoAnimController,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: 1.0 + (_logoAnimController.value * 0.1),
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.cyanAccent.withOpacity(0.5 + (_logoAnimController.value * 0.5)),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Text(
+                        'NEON\nJUMP',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 60,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(color: Colors.cyanAccent, blurRadius: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              // High Score and Coins
+              Consumer<GameState>(
+                builder: (context, gameState, child) {
+                  return Column(
+                    children: [
+                      Text(
+                        'HIGH SCORE: ${gameState.highScore}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          color: Colors.yellowAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'COINS: ${gameState.coins}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          color: Colors.amberAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              
+              // Buttons
+              Column(
+                children: [
+                  _buildButton(
+                    context, 
+                    'PLAY', 
+                    Colors.cyanAccent, 
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const GameScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _buildButton(
+                    context, 
+                    'SHOP', 
+                    Colors.magentaAccent, 
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ShopScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Banner Ad
+              if (_isBannerAdLoaded && _bannerAd != null)
+                SizedBox(
+                  width: _bannerAd!.size.width.toDouble(),
+                  height: _bannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _bannerAd!),
+                )
+              else
+                const SizedBox(height: 50),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton(BuildContext context, String text, Color color, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 200,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.2),
+          border: Border.all(color: color, width: 2),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.5),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(color: color, blurRadius: 10),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../services/game_state.dart';
+import '../utils/constants.dart';
+
+class ShopScreen extends StatelessWidget {
+  const ShopScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // 6 Skins with their costs
+    final List<Map<String, dynamic>> skins = [
+      {'color': Colors.cyanAccent, 'cost': 0},
+      {'color': Colors.magentaAccent, 'cost': 50},
+      {'color': Colors.yellowAccent, 'cost': 100},
+      {'color': Colors.greenAccent, 'cost': 250},
+      {'color': Colors.deepOrangeAccent, 'cost': 500},
+      {'color': Colors.purpleAccent, 'cost': 1000},
+    ];
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text(
+          'SHOP',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.magentaAccent, blurRadius: 10)],
+          ),
+        ),
+        actions: [
+          Consumer<GameState>(
+            builder: (context, gameState, child) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.monetization_on, color: Colors.amberAccent),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${gameState.coins}',
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              );
+            },
+          )
+        ],
+      ),
+      body: Consumer<GameState>(
+        builder: (context, gameState, child) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(20),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+            ),
+            itemCount: skins.length,
+            itemBuilder: (context, index) {
+              final skin = skins[index];
+              final isOwned = gameState.ownedSkins.contains(index);
+              final isEquipped = gameState.currentSkinIndex == index;
+              final color = skin['color'] as Color;
+
+              return GestureDetector(
+                onTap: () {
+                  if (isOwned) {
+                    gameState.equipSkin(index);
+                  } else {
+                    if (gameState.coins >= skin['cost']) {
+                      gameState.unlockSkin(index, skin['cost']);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Not enough coins!')),
+                      );
+                    }
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    border: Border.all(
+                      color: isEquipped ? Colors.white : color.withOpacity(0.5),
+                      width: isEquipped ? 3 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: isEquipped
+                        ? [BoxShadow(color: color, blurRadius: 10)]
+                        : [],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: color, blurRadius: 15),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      if (isEquipped)
+                        const Text('EQUIPPED', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                      else if (isOwned)
+                        const Text('OWNED', style: TextStyle(color: Colors.white54))
+                      else
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.monetization_on, color: Colors.amberAccent, size: 16),
+                            const SizedBox(width: 5),
+                            Text('${skin['cost']}', style: const TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
