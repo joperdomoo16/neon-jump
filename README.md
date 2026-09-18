@@ -1,17 +1,32 @@
-# neon_jump
+# Neon Jump
 
-A new Flutter project.
+A hyper-casual neon jumping game built with Flutter and the Flame engine.
+
+## Features
+
+* **Flame Engine:** Smooth 2D gameplay physics and rendering.
+* **Neon Aesthetics:** Beautiful glowing graphics and visual effects.
+* **Audio & Haptics:** Immersive sound effects and vibration feedback.
+* **Firebase Integration:** Secure authentication (including Google Sign-In), cloud saves via Firestore, and App Check for security.
+* **Monetization:** Integrated with Google Mobile Ads.
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### Prerequisites
 
-A few resources to get you started if this is your first Flutter project:
+* [Flutter SDK](https://flutter.dev/docs/get-started/install) (>=3.2.0 <4.0.0)
+* Firebase project configuration (`google-services.json` for Android, `GoogleService-Info.plist` for iOS).
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Installation
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+1. Clone the repository.
+2. Run `flutter pub get` to install dependencies.
+3. Ensure your Firebase configuration files are placed in their respective platform directories.
+4. Run the app using `flutter run`.
+
+## Tech Stack
+
+* **Framework:** [Flutter](https://flutter.dev/)
+* **Game Engine:** [Flame](https://flame-engine.org/)
+* **Backend:** Firebase (Auth, Firestore, App Check)
+* **State Management:** Provider
