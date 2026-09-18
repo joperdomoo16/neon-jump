@@ -4,6 +4,16 @@ import '../utils/obfuscated_int.dart';
 import '../models/achievement.dart';
 import 'firebase_service.dart';
 import '../utils/constants.dart';
+import 'storage_repository.dart';
+
+class LoginResult {
+  final bool success;
+  final bool hasConflict;
+  final String? cloudName;
+  final int? cloudScore;
+  
+  LoginResult({required this.success, this.hasConflict = false, this.cloudName, this.cloudScore});
+}
 
 class GameState extends ChangeNotifier {
   final _secureStorage = const FlutterSecureStorage();
@@ -69,27 +79,41 @@ class GameState extends ChangeNotifier {
     }
   }
 
+  final StorageRepository _storage = StorageRepository();
+
   Future<void> init() async {
-    final highScoreStr = await _secureStorage.read(key: 'highScore');
+    final keys = [
+      'highScore',
+      'coins',
+      'playerName',
+      'ownedSkins',
+      'currentSkinIndex',
+      'totalDeaths',
+      'unlockedAchievements'
+    ];
+    
+    final values = await _storage.readAll(keys);
+
+    final highScoreStr = values['highScore'];
     if (highScoreStr != null) _highScore.value = int.tryParse(highScoreStr) ?? 0;
     
-    final coinsStr = await _secureStorage.read(key: 'coins');
+    final coinsStr = values['coins'];
     if (coinsStr != null) _coins.value = int.tryParse(coinsStr) ?? 0;
     
-    _playerName = await _secureStorage.read(key: 'playerName') ?? '';
+    _playerName = values['playerName'] ?? '';
     
-    final skinsString = await _secureStorage.read(key: 'ownedSkins');
+    final skinsString = values['ownedSkins'];
     if (skinsString != null && skinsString.isNotEmpty) {
       _ownedSkins = skinsString.split(',').map((e) => int.parse(e)).toList();
     }
     
-    final skinIdxStr = await _secureStorage.read(key: 'currentSkinIndex');
+    final skinIdxStr = values['currentSkinIndex'];
     if (skinIdxStr != null) _currentSkinIndex = int.tryParse(skinIdxStr) ?? 0;
     
-    final deathsStr = await _secureStorage.read(key: 'totalDeaths');
+    final deathsStr = values['totalDeaths'];
     if (deathsStr != null) _totalDeaths = int.tryParse(deathsStr) ?? 0;
     
-    final unlockedStr = await _secureStorage.read(key: 'unlockedAchievements');
+    final unlockedStr = values['unlockedAchievements'];
     if (unlockedStr != null && unlockedStr.isNotEmpty) {
       final unlockedIds = unlockedStr.split(',');
       for (var ach in achievements) {
@@ -148,9 +172,91 @@ class GameState extends ChangeNotifier {
     _firebaseService.submitScore(name, _highScore.value);
   }
 
+  Future<void> wipeLocalData() async {
+    _playerName = '';
+    _highScore.value = 0;
+    _coins.value = 0;
+    _currentScore.value = 0;
+    _totalDeaths = 0;
+    _currentRevives = 0;
+    _ownedSkins = [0];
+    _currentSkinIndex = 0;
+    for (var ach in achievements) {
+      ach.isUnlocked = false;
+    }
+    await _secureStorage.deleteAll();
+    notifyListeners();
+  }
+
+  Future<LoginResult> loginWithGoogle() async {
+    final result = await _firebaseService.signInWithGoogle();
+    if (result != null) {
+      final data = await _firebaseService.getUserData();
+      if (data != null) {
+        final cloudScore = data['score'] as int? ?? 0;
+        final cloudName = data['playerName'] as String? ?? '';
+        
+        if (cloudName.isNotEmpty || cloudScore > 0) {
+          if (_playerName.isNotEmpty && _playerName != cloudName) {
+            return LoginResult(
+              success: true,
+              hasConflict: true,
+              cloudName: cloudName,
+              cloudScore: cloudScore,
+            );
+          } else {
+             _playerName = cloudName;
+             if (cloudScore > _highScore.value) {
+               _highScore.value = cloudScore;
+             }
+             await _saveHighScore();
+             await _secureStorage.write(key: 'playerName', value: _playerName);
+             _firebaseService.submitScore(_playerName, _highScore.value);
+             notifyListeners();
+             return LoginResult(success: true, hasConflict: false);
+          }
+        }
+      }
+      
+      if (_playerName.isNotEmpty) {
+        _firebaseService.submitScore(_playerName, _highScore.value);
+      }
+      notifyListeners();
+      return LoginResult(success: true, hasConflict: false);
+    }
+    return LoginResult(success: false);
+  }
+
+  Future<void> resolveLoginConflict(bool recoverCloudData, String cloudName, int cloudScore) async {
+    if (recoverCloudData) {
+      _playerName = cloudName;
+      _highScore.value = cloudScore;
+      await _secureStorage.write(key: 'playerName', value: cloudName);
+      await _saveHighScore();
+    } else {
+      _firebaseService.submitScore(_playerName, _highScore.value);
+    }
+    notifyListeners();
+  }
+
+  DateTime? _gameStartTime;
+
   void setGameOver(bool gameOver) {
     _isGameOver = gameOver;
     if (gameOver) {
+      // Speedhack validation
+      if (_gameStartTime != null) {
+        final durationInSeconds = DateTime.now().difference(_gameStartTime!).inSeconds;
+        // Assume maximum realistic speed is ~1000 points per second.
+        // If they exceed this, do not save score.
+        final maxRealisticScore = durationInSeconds * 1000;
+        if (_currentScore.value > maxRealisticScore && _currentScore.value > 5000) {
+          print('Speedhack detected! Score: ${_currentScore.value}, Time: $durationInSeconds sec');
+          // Discard score
+          _currentScore.value = 0;
+        }
+      }
+
       _totalDeaths++;
       _saveTotalDeaths();
       _checkAchievements();
@@ -167,6 +273,7 @@ class GameState extends ChangeNotifier {
     _currentScore.value = 0;
     _currentRevives = 0;
     _isGameOver = false;
+    _gameStartTime = DateTime.now();
     _platformBounces.clear();
     _currentCoinsCollected = 0;
     notifyListeners();

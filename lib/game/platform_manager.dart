@@ -15,15 +15,23 @@ class PlatformManager extends Component {
   
   PlatformManager({required this.gameRef});
 
+  final Map<Type, List<Platform>> _pools = {
+    NormalPlatform: [],
+    MovingPlatform: [],
+    FragilePlatform: [],
+    SpringPlatform: [],
+  };
+
   void spawnInitialPlatform(Vector2 position) {
-    // Clear existing
+    // Clear existing to pools
     for (var p in activePlatforms) {
-      p.removeFromParent();
+      if (p.parent != null) p.removeFromParent();
+      _pools[p.runtimeType]?.add(p);
     }
     activePlatforms.clear();
 
     highestPlatformY = position.y;
-    final platform = NormalPlatform(position: position);
+    final platform = _getPlatform(NormalPlatform, position);
     gameRef.world.add(platform);
     activePlatforms.add(platform);
     
@@ -46,11 +54,39 @@ class PlatformManager extends Component {
     double cameraBottomY = gameRef.camera.viewfinder.position.y + (gameRef.size.y / 2);
     activePlatforms.removeWhere((platform) {
       if (platform.position.y > cameraBottomY + 100) {
-        platform.removeFromParent();
+        if (platform.parent != null) platform.removeFromParent();
+        _pools[platform.runtimeType]?.add(platform);
+        return true;
+      }
+      // Also remove fragile platforms that are broken
+      if (platform is FragilePlatform && platform.parent == null) {
+        _pools[FragilePlatform]?.add(platform);
         return true;
       }
       return false;
     });
+  }
+
+  Platform _getPlatform(Type type, Vector2 position) {
+    final pool = _pools[type];
+    if (pool != null && pool.isNotEmpty) {
+      final p = pool.removeLast();
+      p.reset(position);
+      return p;
+    }
+    
+    // Instantiate if pool is empty
+    switch (type) {
+      case MovingPlatform:
+        return MovingPlatform(position: position, range: gameRef.size.x * 0.4);
+      case FragilePlatform:
+        return FragilePlatform(position: position);
+      case SpringPlatform:
+        return SpringPlatform(position: position);
+      case NormalPlatform:
+      default:
+        return NormalPlatform(position: position);
+    }
   }
 
   void _generatePlatforms() {
@@ -70,28 +106,28 @@ class PlatformManager extends Component {
       highestPlatformY -= currentGap;
       
       // Random X position ensuring it's reachable horizontally
-      // For simplicity, anywhere within screen width. Since screen wraps, everything is technically reachable.
       double x = random.nextDouble() * (gameRef.size.x - Constants.platformWidth) + (Constants.platformWidth / 2);
-      
       Vector2 pos = Vector2(x, highestPlatformY);
-      Platform newPlatform;
       
+      Type platformType;
       double r = random.nextDouble();
       if (r < fragileProb) {
-        newPlatform = FragilePlatform(position: pos);
+        platformType = FragilePlatform;
       } else if (r < fragileProb + movingProb) {
-        newPlatform = MovingPlatform(position: pos, range: gameRef.size.x * 0.4);
+        platformType = MovingPlatform;
       } else if (r < fragileProb + movingProb + springProb) {
-        newPlatform = SpringPlatform(position: pos);
+        platformType = SpringPlatform;
       } else {
-        newPlatform = NormalPlatform(position: pos);
+        platformType = NormalPlatform;
       }
+      
+      Platform newPlatform = _getPlatform(platformType, pos);
       
       gameRef.world.add(newPlatform);
       activePlatforms.add(newPlatform);
 
       // 10% chance to spawn a coin above the platform
-      if (random.nextDouble() < 0.1 && newPlatform is! FragilePlatform) {
+      if (random.nextDouble() < 0.1 && platformType != FragilePlatform) {
         final coin = Coin(position: Vector2(pos.x, pos.y - 40));
         gameRef.world.add(coin);
       }

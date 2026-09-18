@@ -24,6 +24,10 @@ abstract class Platform extends PositionComponent with CollisionCallbacks, HasGa
     add(RectangleHitbox());
   }
 
+  void reset(Vector2 newPosition) {
+    position.setFrom(newPosition);
+  }
+
   void onJumpedOn() {} // Hook for subclasses (e.g. Fragile platform)
   
   Color getDynamicColor(Color baseColor) {
@@ -62,10 +66,17 @@ class MovingPlatform extends Platform {
   double _time = 0;
   final double speed;
   final double range;
-  final double initialX;
+  double initialX;
 
   MovingPlatform({required super.position, this.speed = 2.0, this.range = 100.0}) 
     : initialX = position.x;
+
+  @override
+  void reset(Vector2 newPosition) {
+    super.reset(newPosition);
+    initialX = newPosition.x;
+    _time = 0;
+  }
 
   @override
   void render(Canvas canvas) {
@@ -92,6 +103,12 @@ class FragilePlatform extends Platform {
   bool _isBroken = false;
 
   FragilePlatform({required super.position});
+
+  @override
+  void reset(Vector2 newPosition) {
+    super.reset(newPosition);
+    _isBroken = false;
+  }
 
   @override
   void render(Canvas canvas) {

@@ -2,7 +2,7 @@ name: neon_jump
 description: "A hyper-casual neon jumping game."
 publish_to: 'none'
 
-version: 1.0.8+11
+version: 1.0.10+13
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -21,6 +21,8 @@ dependencies:
   cloud_firestore: ^6.6.0
   firebase_auth: ^6.5.4
   flutter_secure_storage: ^10.3.1
+  google_sign_in: ^6.2.1
+  firebase_app_check: ^0.4.8
 
 dev_dependencies:
   flutter_test:
@@ -28,9 +30,18 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
     - assets/audio/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0F0C29"
+  adaptive_icon_foreground: "assets/images/logo.png"

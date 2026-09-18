@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -9,13 +10,14 @@ class FirebaseService {
     if (playerName.isEmpty) return;
     
     try {
-      // Ensure user is signed in anonymously
-      if (_auth.currentUser == null) {
-        await _auth.signInAnonymously();
-      }
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return; // Do not submit if not logged in
       
-      final String uid = _auth.currentUser?.uid ?? 'unknown';
-      if (uid == 'unknown') return;
+      // Ensure only Google-linked accounts can upload to the leaderboard
+      bool isGoogleLinked = currentUser.providerData.any((p) => p.providerId == 'google.com');
+      if (!isGoogleLinked) return;
+      
+      final String uid = currentUser.uid;
 
       final docRef = _db.collection('leaderboard').doc(uid);
       final docSnap = await docRef.get();
@@ -44,23 +46,25 @@ class FirebaseService {
 
   Future<bool> isNameAvailable(String name) async {
     try {
-      final querySnapshot = await _db
-          .collection('leaderboard')
-          .where('playerName', isEqualTo: name)
-          .get();
+      final query = _db.collection('leaderboard').where('playerName', isEqualTo: name);
+      final AggregateQuerySnapshot snapshot = await query.count().get();
 
-      if (querySnapshot.docs.isEmpty) {
+      if (snapshot.count == 0) {
         return true; // Name is totally free
       }
 
-      // If the name exists, check if it belongs to the current user
-      final currentUid = _auth.currentUser?.uid;
-      for (var doc in querySnapshot.docs) {
-        if (doc.id != currentUid) {
-          return false; // Someone else has it
+      if (snapshot.count == 1) {
+        // If the name exists once, check if it belongs to the current user
+        final currentUid = _auth.currentUser?.uid;
+        if (currentUid != null) {
+          final doc = await _db.collection('leaderboard').doc(currentUid).get();
+          if (doc.exists && doc.data()?['playerName'] == name) {
+            return true; // Current user owns it
+          }
         }
       }
-      return true; // Current user owns it
+      
+      return false; // Someone else has it or there are multiple (which shouldn't happen)
     } catch (e) {
       print('Error checking name availability: $e');
       return false; // Assume unavailable on error to prevent duplicates
@@ -70,8 +74,44 @@ class FirebaseService {
   Stream<QuerySnapshot> getTopPlayers() {
     return _db
         .collection('leaderboard')
+        .where('score', isGreaterThan: 0)
         .orderBy('score', descending: true)
-        .limit(10)
         .snapshots();
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return null; // User canceled
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final User? currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.isAnonymous) {
+        try {
+          // Link anonymous to Google to keep data
+          return await currentUser.linkWithCredential(credential);
+        } catch (e) {
+          // If already linked or error, just sign in
+          return await _auth.signInWithCredential(credential);
+        }
+      } else {
+        return await _auth.signInWithCredential(credential);
+      }
+    } catch (e) {
+      print('Error en Google Sign-In: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserData() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return null;
+    final doc = await _db.collection('leaderboard').doc(uid).get();
+    return doc.data();
   }
 }

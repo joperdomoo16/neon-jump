@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"neon-jump-stellar","appId":"1:160739801274:android:7d41cd9dd14d2d6c222a83","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"neon-jump-stellar","configurations":{"android":"1:160739801274:android:7d41cd9dd14d2d6c222a83"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "neon-jump-stellar",
+          "appId": "1:160739801274:android:7d41cd9dd14d2d6c222a83",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "neon-jump-stellar",
+          "configurations": {
+            "android": "1:160739801274:android:7d41cd9dd14d2d6c222a83"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

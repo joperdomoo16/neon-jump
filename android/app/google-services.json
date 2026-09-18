@@ -12,7 +12,12 @@
           "package_name": "com.tustudio.neon_jump"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "160739801274-t6s2kmtldupjj3cnnrhs45h24jhp4l0h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDSSYi7CI2nIysO1Z-bswJtUaci5U2RdLY"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "160739801274-t6s2kmtldupjj3cnnrhs45h24jhp4l0h.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "160739801274-l2uojueofjj363dp90r130s9hkb25v30.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.tustudio.neonJump"
+              }
+            }
+          ]
         }
       }
     }

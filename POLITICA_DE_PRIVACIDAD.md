@@ -1,14 +1,14 @@
 # Política de Privacidad para Neon Jump
 
-**Última actualización:** 7 de Julio de 2026
+**Última actualización:** 17 de Septiembre de 2026
 
 Bienvenido a **Neon Jump**. El desarrollador ("nosotros", "nuestro") ha creado esta Política de Privacidad para explicar cómo recopilamos, usamos y protegemos la información de los usuarios ("usted") cuando juegan nuestra aplicación.
 
 ### 1. Recopilación y Uso de la Información
-Neon Jump está diseñado para ser un juego de entretenimiento seguro y accesible. **No requerimos que los usuarios creen una cuenta ni solicitamos información personal identificable** (como nombre, dirección, correo electrónico o número de teléfono) para jugar.
+Neon Jump permite a los usuarios jugar de forma anónima o iniciar sesión mediante su cuenta de Google. Si decides utilizar la función de **Inicio de sesión con Google**, recopilaremos información básica de tu perfil público de Google (como tu dirección de correo electrónico, nombre y foto de perfil) con el único fin de crear tu cuenta en el juego y vincular tu progreso. No compartimos esta información con terceros.
 
-### 2. Datos del Juego (Almacenamiento Local)
-Cualquier dato relacionado con su progreso en el juego, como su puntuación máxima (High Score) o la cantidad de monedas (Coins) recolectadas, se almacena **exclusivamente de forma local en su propio dispositivo**. Nosotros no transmitimos, almacenamos ni procesamos estos datos en servidores externos.
+### 2. Datos del Juego y Almacenamiento
+El progreso en el juego, como tu puntuación máxima (High Score) y la cantidad de monedas (Coins) recolectadas, se guarda inicialmente de forma local en tu dispositivo. Si decides iniciar sesión con Google, tu progreso y nombre de usuario se transmitirán y almacenarán de forma segura en la nube (utilizando los servicios de Firebase de Google). Esto nos permite ayudarte a recuperar tu progreso en cualquier momento, mantener tu cuenta segura y permitirte participar en el Ranking Global.
 
 ### 3. Servicios de Terceros
 *(Nota para el desarrollador: Si tu juego incluye anuncios de AdMob o Google Analytics, mantén esta sección. Si no incluye nada de internet, puedes borrarla).*
@@ -22,4 +22,4 @@ Podemos actualizar nuestra Política de Privacidad de vez en cuando. Le recomend
 
 ### 6. Contacto
 Si tiene alguna pregunta, duda o sugerencia sobre nuestra Política de Privacidad, no dude en ponerse en contacto con nosotros en:
-**[Tu Correo Electrónico de Soporte / Desarrollador]**
+**sonicaoriginal@gmail.com / Sónica**
