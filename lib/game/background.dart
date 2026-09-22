@@ -38,27 +38,29 @@ class Background extends Component with HasGameRef<NeonJumpGame> {
     
     if (paletteIndex != _currentPaletteIndex) {
       _currentPaletteIndex = paletteIndex;
-      // TODO: Implement smooth color transition
-      // For now, we will just tint the background
+      _gradientPaint = null; // Invalidate cached shader if colors change
     }
   }
 
+  Paint? _gradientPaint;
+  Rect? _cachedRect;
+  final Paint _starPaint = Paint()..color = Colors.white.withOpacity(0.5);
+
   @override
   void render(Canvas canvas) {
-    // Fill gradient statically on screen
-    final rect = Rect.fromLTWH(0, 0, gameRef.size.x, gameRef.size.y);
-    
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [topColor, bottomColor],
-      ).createShader(rect);
+    if (_cachedRect == null || _cachedRect!.width != gameRef.size.x || _cachedRect!.height != gameRef.size.y || _gradientPaint == null) {
+      _cachedRect = Rect.fromLTWH(0, 0, gameRef.size.x, gameRef.size.y);
+      _gradientPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [topColor, bottomColor],
+        ).createShader(_cachedRect!);
+    }
       
-    canvas.drawRect(rect, paint);
+    canvas.drawRect(_cachedRect!, _gradientPaint!);
 
     // Draw stars with parallax wrap
-    final starPaint = Paint()..color = Colors.white.withOpacity(0.5);
     final cameraTopLeft = gameRef.camera.viewfinder.position - gameRef.size / 2;
 
     for (var star in stars) {
@@ -70,7 +72,7 @@ class Background extends Component with HasGameRef<NeonJumpGame> {
       canvas.drawCircle(
         Offset(star.position.x, relativeY), 
         star.size, 
-        starPaint
+        _starPaint
       );
     }
   }

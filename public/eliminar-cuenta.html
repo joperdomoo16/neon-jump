@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminación de Cuenta y Datos - Neon Jump</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { color: #d6226b; }
+        h3 { color: #302b63; margin-top: 30px; }
+        p, ul, ol { margin-bottom: 15px; }
+        li { margin-bottom: 8px; }
+        .alert-box {
+            background-color: #fff3cd;
+            border-left: 5px solid #d6226b;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .contact-box {
+            background-color: #f0f4f8;
+            border-left: 5px solid #302b63;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Eliminación de Cuenta y Datos de Usuario</h1>
+    <p><strong>Aplicación:</strong> Neon Jump</p>
+    <p><strong>Desarrollador:</strong> Sónica</p>
+    <p><strong>Última actualización:</strong> 21 de Septiembre de 2026</p>
+
+    <p>En <strong>Neon Jump</strong> valoramos y respetamos tu privacidad. Conforme a las políticas de Google Play, proporcionamos esta página para que cualquier usuario pueda conocer cómo se gestiona y solicita la eliminación definitiva de su cuenta y de todos los datos asociados al juego.</p>
+
+    <h3>1. Pasos para solicitar la eliminación de tu cuenta</h3>
+    <p>Si has iniciado sesión con Google en Neon Jump y deseas que tu cuenta y datos sean eliminados manualmente de forma permanente, sigue estos sencillos pasos:</p>
+    <ol>
+        <li>Envía un correo electrónico a nuestro equipo de soporte a: <a href="mailto:sonicaoriginal@gmail.com"><strong>sonicaoriginal@gmail.com</strong></a>.</li>
+        <li>En el asunto del mensaje, indica: <strong>"Solicitud de eliminación de cuenta - Neon Jump"</strong>.</li>
+        <li>En el cuerpo del mensaje, proporciona:
+            <ul>
+                <li>La dirección de correo de Google vinculada a tu cuenta de juego.</li>
+                <li>Tu nombre de jugador (Nickname) en el juego.</li>
+            </ul>
+        </li>
+        <li>Una vez recibida la solicitud, procesaremos la eliminación completa en un plazo máximo de <strong>7 días hábiles</strong> y te responderemos confirmando la eliminación.</li>
+    </ol>
+
+    <div class="contact-box">
+        <strong>Contacto directo para solicitudes:</strong><br>
+        Correo: <a href="mailto:sonicaoriginal@gmail.com">sonicaoriginal@gmail.com</a><br>
+        Desarrollador: Sónica
+    </div>
+
+    <h3>2. Tipos de datos que se eliminan</h3>
+    <p>Al procesarse la solicitud de eliminación de tu cuenta, se borrarán de forma irreversible:</p>
+    <ul>
+        <li><strong>Identificador de usuario (UID):</strong> Tu registro en Firebase Authentication.</li>
+        <li><strong>Información de perfil:</strong> Tu nombre de jugador y correo electrónico asociado.</li>
+        <li><strong>Progreso de juego en la nube:</strong> Tu puntuación máxima (High Score), cantidad de monedas recolectadas (Coins) y marcas de tiempo registradas en nuestra base de datos (Cloud Firestore).</li>
+        <li><strong>Posición en el Ranking:</strong> Tu registro será removido permanentemente del Ranking Global (Leaderboard).</li>
+    </ul>
+
+    <h3>3. Tipos de datos que se conservan</h3>
+    <p><strong>No conservamos ningún dato personal</strong> en nuestros servidores una vez completada la solicitud de eliminación. Todos los registros vinculados en la nube son borrados definitivamente.</p>
+    <p><em>Nota sobre datos locales:</em> Los datos almacenados localmente en tu dispositivo (caché o configuraciones offline) pueden eliminarse en cualquier momento desinstalando la aplicación o borrando el almacenamiento de la app desde los <em>Ajustes > Aplicaciones > Neon Jump > Almacenamiento > Borrar datos</em> de tu dispositivo Android.</p>
+
+    <h3>4. Política de Eliminación Automática por Inactividad (Período de Retención)</h3>
+    <div class="alert-box">
+        <p><strong>Eliminación definitiva por inactividad:</strong></p>
+        <p>Cualquier usuario o cuenta que permanezca <strong>inactivo por 30 días seguidos será eliminado automáticamente de manera definitiva sin posibilidad de recuperación</strong>.</p>
+        <p>A través de las políticas de ciclo de vida (TTL) de nuestra base de datos en la nube, si transcurren 30 días continuos sin que registres actividad o partidas nuevas, tus datos de puntuación, monedas y posición en el ranking expiran y son destruidos permanentemente de nuestros servidores.</p>
+    </div>
+
+</body>
+</html>

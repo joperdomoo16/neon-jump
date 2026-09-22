@@ -7,9 +7,6 @@ import '../services/game_state.dart';
 import '../services/ads_manager.dart';
 import '../utils/constants.dart';
 import 'game_screen.dart';
-import 'shop_screen.dart';
-import 'ranking_screen.dart';
-
 class GameOver extends StatefulWidget {
   final NeonJumpGame game;
   const GameOver({super.key, required this.game});

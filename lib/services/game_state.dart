@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../utils/obfuscated_int.dart';
 import '../models/achievement.dart';
 import 'firebase_service.dart';
-import '../utils/constants.dart';
 import 'storage_repository.dart';
 
 class LoginResult {
@@ -11,8 +10,15 @@ class LoginResult {
   final bool hasConflict;
   final String? cloudName;
   final int? cloudScore;
+  final int? cloudCoins;
   
-  LoginResult({required this.success, this.hasConflict = false, this.cloudName, this.cloudScore});
+  LoginResult({
+    required this.success, 
+    this.hasConflict = false, 
+    this.cloudName, 
+    this.cloudScore,
+    this.cloudCoins,
+  });
 }
 
 class GameState extends ChangeNotifier {
@@ -75,6 +81,9 @@ class GameState extends ChangeNotifier {
     if (_coins.value >= amount) {
       _coins.value -= amount;
       _saveCoins();
+      if (_playerName.isNotEmpty) {
+        _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
+      }
       notifyListeners();
     }
   }
@@ -139,6 +148,9 @@ class GameState extends ChangeNotifier {
     _coins.value += amount;
     _currentCoinsCollected += amount;
     _saveCoins();
+    if (_playerName.isNotEmpty) {
+      _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
+    }
     notifyListeners();
   }
 
@@ -149,6 +161,9 @@ class GameState extends ChangeNotifier {
       _saveCoins();
       _saveOwnedSkins();
       _checkAchievements();
+      if (_playerName.isNotEmpty) {
+        _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
+      }
       notifyListeners();
     }
   }
@@ -169,7 +184,7 @@ class GameState extends ChangeNotifier {
     _playerName = name;
     await _secureStorage.write(key: 'playerName', value: name);
     notifyListeners();
-    _firebaseService.submitScore(name, _highScore.value);
+    _firebaseService.submitScore(name, _highScore.value, coins: _coins.value);
   }
 
   Future<void> wipeLocalData() async {
@@ -194,24 +209,30 @@ class GameState extends ChangeNotifier {
       final data = await _firebaseService.getUserData();
       if (data != null) {
         final cloudScore = data['score'] as int? ?? 0;
+        final cloudCoins = data['coins'] as int? ?? 0;
         final cloudName = data['playerName'] as String? ?? '';
         
-        if (cloudName.isNotEmpty || cloudScore > 0) {
+        if (cloudName.isNotEmpty || cloudScore > 0 || cloudCoins > 0) {
           if (_playerName.isNotEmpty && _playerName != cloudName) {
             return LoginResult(
               success: true,
               hasConflict: true,
               cloudName: cloudName,
               cloudScore: cloudScore,
+              cloudCoins: cloudCoins,
             );
           } else {
              _playerName = cloudName;
              if (cloudScore > _highScore.value) {
                _highScore.value = cloudScore;
              }
+             if (cloudCoins > _coins.value) {
+               _coins.value = cloudCoins;
+             }
              await _saveHighScore();
+             await _saveCoins();
              await _secureStorage.write(key: 'playerName', value: _playerName);
-             _firebaseService.submitScore(_playerName, _highScore.value);
+             _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
              notifyListeners();
              return LoginResult(success: true, hasConflict: false);
           }
@@ -219,7 +240,7 @@ class GameState extends ChangeNotifier {
       }
       
       if (_playerName.isNotEmpty) {
-        _firebaseService.submitScore(_playerName, _highScore.value);
+        _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
       }
       notifyListeners();
       return LoginResult(success: true, hasConflict: false);
@@ -227,14 +248,16 @@ class GameState extends ChangeNotifier {
     return LoginResult(success: false);
   }
 
-  Future<void> resolveLoginConflict(bool recoverCloudData, String cloudName, int cloudScore) async {
+  Future<void> resolveLoginConflict(bool recoverCloudData, String cloudName, int cloudScore, int cloudCoins) async {
     if (recoverCloudData) {
       _playerName = cloudName;
       _highScore.value = cloudScore;
+      _coins.value = cloudCoins;
       await _secureStorage.write(key: 'playerName', value: cloudName);
       await _saveHighScore();
+      await _saveCoins();
     } else {
-      _firebaseService.submitScore(_playerName, _highScore.value);
+      _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
     }
     notifyListeners();
   }
@@ -251,7 +274,7 @@ class GameState extends ChangeNotifier {
         // If they exceed this, do not save score.
         final maxRealisticScore = durationInSeconds * 1000;
         if (_currentScore.value > maxRealisticScore && _currentScore.value > 5000) {
-          print('Speedhack detected! Score: ${_currentScore.value}, Time: $durationInSeconds sec');
+          debugPrint('Speedhack detected! Score: ${_currentScore.value}, Time: $durationInSeconds sec');
           // Discard score
           _currentScore.value = 0;
         }
@@ -263,7 +286,7 @@ class GameState extends ChangeNotifier {
       
       _saveHighScore();
       if (_playerName.isNotEmpty) {
-        _firebaseService.submitScore(_playerName, _highScore.value);
+        _firebaseService.submitScore(_playerName, _highScore.value, coins: _coins.value);
       }
     }
     notifyListeners();

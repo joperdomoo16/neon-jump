@@ -1,6 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import 'dart:math';
 
 import 'player.dart';
 import 'platform_manager.dart';
@@ -107,8 +108,8 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
     
     // Only move camera up (never down) — classic Doodle Jump behavior
     if (targetCameraY < camera.viewfinder.position.y) {
-      // Use a high lerp factor so the camera keeps up with the player
-      double lerpFactor = 0.5;
+      // Framerate-independent lerp: smooth tracking across 60Hz, 90Hz, 120Hz displays
+      double lerpFactor = 1.0 - exp(-35.0 * dt);
       double newY = camera.viewfinder.position.y + (targetCameraY - camera.viewfinder.position.y) * lerpFactor;
       
       // Safety: if player is way above camera, snap immediately

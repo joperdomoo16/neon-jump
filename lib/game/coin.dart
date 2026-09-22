@@ -23,6 +23,15 @@ class Coin extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCallb
       ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 4);
   }
 
+  @override
+  void update(double dt) {
+    super.update(dt);
+    final cameraBottomY = gameRef.camera.viewfinder.position.y + (gameRef.size.y / 2);
+    if (position.y > cameraBottomY + 100) {
+      removeFromParent();
+    }
+  }
+
   void collect() {
     AudioManager().playCoin();
     gameRef.gameState.addCoins(1);

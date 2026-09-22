@@ -10,16 +10,20 @@ Neon Jump permite a los usuarios jugar de forma anónima o iniciar sesión media
 ### 2. Datos del Juego y Almacenamiento
 El progreso en el juego, como tu puntuación máxima (High Score) y la cantidad de monedas (Coins) recolectadas, se guarda inicialmente de forma local en tu dispositivo. Si decides iniciar sesión con Google, tu progreso y nombre de usuario se transmitirán y almacenarán de forma segura en la nube (utilizando los servicios de Firebase de Google). Esto nos permite ayudarte a recuperar tu progreso en cualquier momento, mantener tu cuenta segura y permitirte participar en el Ranking Global.
 
-### 3. Servicios de Terceros
-*(Nota para el desarrollador: Si tu juego incluye anuncios de AdMob o Google Analytics, mantén esta sección. Si no incluye nada de internet, puedes borrarla).*
-La aplicación puede utilizar servicios de terceros (como plataformas de publicidad o analíticas de errores) que podrían recopilar información técnica anónima sobre su dispositivo (como el modelo del dispositivo, versión del sistema operativo o dirección IP no precisa) para mejorar la experiencia del usuario o mostrar anuncios. Estos servicios de terceros operan bajo sus propias políticas de privacidad.
+### 3. Servicios de Terceros y Publicidad
+La aplicación utiliza servicios de terceros como **Google AdMob** y **Google Firebase**. Estos servicios pueden recopilar y procesar identificadores de dispositivo (como el ID de publicidad de Google o AAID), datos de rendimiento y diagnóstico para mostrar anuncios personalizados o no personalizados, analizar estadísticas de uso y prevenir fraudes o abusos. Estos servicios operan bajo las políticas de privacidad de Google.
 
 ### 4. Privacidad de los Niños
 Neon Jump es un juego apto para todas las edades. No recopilamos conscientemente información personal de niños menores de 13 años. Si descubrimos que un menor de 13 años nos ha proporcionado información personal, la eliminaremos inmediatamente.
 
-### 5. Cambios en esta Política de Privacidad
+### 5. Eliminación de Cuentas y Retención de Datos
+Los usuarios pueden solicitar en cualquier momento la eliminación definitiva de su cuenta y de todos los datos asociados enviando un correo electrónico a **sonicaoriginal@gmail.com**.
+
+Asimismo, cualquier cuenta o usuario inactivo por 30 días seguidos será eliminado automáticamente de forma definitiva sin posibilidad de recuperación.
+
+### 6. Cambios en esta Política de Privacidad
 Podemos actualizar nuestra Política de Privacidad de vez en cuando. Le recomendamos que revise esta página periódicamente para ver si hay cambios. Cualquier actualización entrará en vigencia inmediatamente después de ser publicada.
 
-### 6. Contacto
+### 7. Contacto
 Si tiene alguna pregunta, duda o sugerencia sobre nuestra Política de Privacidad, no dude en ponerse en contacto con nosotros en:
 **sonicaoriginal@gmail.com / Sónica**

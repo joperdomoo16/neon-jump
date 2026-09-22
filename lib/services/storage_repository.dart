@@ -21,6 +21,16 @@ class StorageRepository {
     return null;
   }
 
+  Future<void> saveBool(String key, bool value) async {
+    await _secureStorage.write(key: key, value: value.toString());
+  }
+
+  Future<bool?> readBool(String key) async {
+    final str = await _secureStorage.read(key: key);
+    if (str != null) return str == 'true';
+    return null;
+  }
+
   Future<void> deleteAll() async {
     await _secureStorage.deleteAll();
   }

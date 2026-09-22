@@ -112,6 +112,13 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
     _spawnBounceParticles();
   }
 
+  final Map<int, Sprite> _thematicSprites = {};
+  final Paint _skinPaint = Paint()..style = PaintingStyle.fill;
+  final Paint _particleTrailPaint = Paint()
+    ..style = PaintingStyle.fill
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
+  final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
+
   void _spawnBounceParticles() {
     final random = Random();
     final color = Constants.neonColors[gameRef.gameState.currentSkinIndex];
@@ -132,17 +139,12 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
               child: ComputedParticle(
                 renderer: (canvas, particle) {
                   // Light trail
-                  final paint = Paint()
-                    ..color = color.withOpacity(1 - particle.progress)
-                    ..style = PaintingStyle.fill
-                    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-                  canvas.drawCircle(Offset.zero, 4.0 * (1 - particle.progress), paint);
+                  _particleTrailPaint.color = color.withOpacity(1 - particle.progress);
+                  canvas.drawCircle(Offset.zero, 4.0 * (1 - particle.progress), _particleTrailPaint);
                   
                   // Frost sparkles (escarcha)
                   if (random.nextDouble() > 0.4) {
-                    final sparklePaint = Paint()
-                      ..color = Colors.white.withOpacity(1 - particle.progress)
-                      ..style = PaintingStyle.fill;
+                    _sparklePaint.color = Colors.white.withOpacity(1 - particle.progress);
                     // Draw a tiny star/sparkle
                     final sparklePath = Path();
                     double s = 2.0 * (1 - particle.progress);
@@ -151,7 +153,7 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
                     sparklePath.quadraticBezierTo(s/2, s/2, 0, s);
                     sparklePath.quadraticBezierTo(-s/2, s/2, -s, 0);
                     sparklePath.quadraticBezierTo(-s/2, -s/2, 0, -s);
-                    canvas.drawPath(sparklePath, sparklePaint);
+                    canvas.drawPath(sparklePath, _sparklePaint);
                   }
                 },
               ),
@@ -182,17 +184,12 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
               child: ComputedParticle(
                 renderer: (canvas, particle) {
                   // Light trail
-                  final paint = Paint()
-                    ..color = color.withOpacity((1 - particle.progress) * 0.5)
-                    ..style = PaintingStyle.fill
-                    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
-                  canvas.drawCircle(Offset.zero, 4.0 * (1 - particle.progress), paint);
+                  _particleTrailPaint.color = color.withOpacity((1 - particle.progress) * 0.5);
+                  canvas.drawCircle(Offset.zero, 4.0 * (1 - particle.progress), _particleTrailPaint);
                   
                   // Frost sparkles (escarcha)
                   if (random.nextDouble() > 0.5) {
-                    final sparklePaint = Paint()
-                      ..color = Colors.white.withOpacity((1 - particle.progress) * 0.8)
-                      ..style = PaintingStyle.fill;
+                    _sparklePaint.color = Colors.white.withOpacity((1 - particle.progress) * 0.8);
                     // Draw a tiny star/sparkle
                     final sparklePath = Path();
                     double s = 2.0 * (1 - particle.progress);
@@ -201,7 +198,7 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
                     sparklePath.quadraticBezierTo(s/2, s/2, 0, s);
                     sparklePath.quadraticBezierTo(-s/2, s/2, -s, 0);
                     sparklePath.quadraticBezierTo(-s/2, -s/2, 0, -s);
-                    canvas.drawPath(sparklePath, sparklePaint);
+                    canvas.drawPath(sparklePath, _sparklePaint);
                   }
                 },
               ),
@@ -224,23 +221,27 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
 
   void _renderThematicSkin(Canvas canvas, int skinIndex) {
     final center = Offset(radius, radius);
-    final skinPaint = Paint()..style = PaintingStyle.fill;
     
     if (skinIndex >= 6 && skinIndex <= 10) {
-      String imageName = '';
-      if (skinIndex == 6) imageName = 'skin_basketball.png';
-      else if (skinIndex == 7) imageName = 'skin_tennis.png';
-      else if (skinIndex == 8) imageName = 'skin_volleyball.png';
-      else if (skinIndex == 9) imageName = 'skin_soccer.png';
-      else if (skinIndex == 10) imageName = 'skin_bowling.png';
+      var sprite = _thematicSprites[skinIndex];
+      if (sprite == null) {
+        String imageName = '';
+        if (skinIndex == 6) imageName = 'skin_basketball.png';
+        else if (skinIndex == 7) imageName = 'skin_tennis.png';
+        else if (skinIndex == 8) imageName = 'skin_volleyball.png';
+        else if (skinIndex == 9) imageName = 'skin_soccer.png';
+        else if (skinIndex == 10) imageName = 'skin_bowling.png';
 
-      final sprite = Sprite(gameRef.images.fromCache(imageName));
+        sprite = Sprite(gameRef.images.fromCache(imageName));
+        _thematicSprites[skinIndex] = sprite;
+      }
+
       sprite.render(canvas, size: Vector2(radius * 2, radius * 2));
       return;
     }
 
     // Draw base color
-    skinPaint.color = Constants.neonColors[skinIndex];
-    canvas.drawCircle(center, radius, skinPaint);
+    _skinPaint.color = Constants.neonColors[skinIndex];
+    canvas.drawCircle(center, radius, _skinPaint);
   }
 }

@@ -22,10 +22,11 @@ service cloud.firestore {
     // Helper function to validate leaderboard data
     function isValidScoreData(data) {
       // hasOnly previene que inyecten campos basura como isAdmin
-      return data.keys().hasOnly(['playerName', 'score', 'timestamp', 'expiresAt'])
+      return data.keys().hasOnly(['playerName', 'score', 'coins', 'timestamp', 'expiresAt'])
              && data.score is int 
              && data.score >= 0 
              && data.score <= 500000
+             && (!('coins' in data) || (data.coins is int && data.coins >= 0 && data.coins <= 1000000))
              && data.playerName is string 
              && data.playerName.size() > 0 
              && data.playerName.size() <= 20

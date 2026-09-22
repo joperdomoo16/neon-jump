@@ -9,6 +9,7 @@ import 'game_screen.dart';
 import 'shop_screen.dart';
 import 'achievements_screen.dart';
 import 'ranking_screen.dart';
+import '../services/audio_manager.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -169,6 +170,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   }
 
   void _showConflictDialog(BuildContext context, GameState gameState, LoginResult result) {
+    final cloudCoins = result.cloudCoins ?? 0;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -181,14 +183,14 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
           ),
           title: const Text('Conflicto de Datos', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: Text(
-            'Hemos encontrado otro usuario llamado "${result.cloudName}" con un SCORE de ${result.cloudScore}.\n\n¿Deseas recuperar o reemplazar por este nuevo usuario?',
+            'Hemos encontrado otro usuario llamado "${result.cloudName}" con un SCORE de ${result.cloudScore} y $cloudCoins monedas.\n\n¿Deseas recuperar o reemplazar por este nuevo usuario?',
             style: const TextStyle(color: Colors.white70),
           ),
           actions: [
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await gameState.resolveLoginConflict(true, result.cloudName!, result.cloudScore!);
+                await gameState.resolveLoginConflict(true, result.cloudName!, result.cloudScore!, cloudCoins);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Progreso de la nube recuperado')),
@@ -200,7 +202,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
             TextButton(
               onPressed: () async {
                 Navigator.of(context).pop();
-                await gameState.resolveLoginConflict(false, result.cloudName!, result.cloudScore!);
+                await gameState.resolveLoginConflict(false, result.cloudName!, result.cloudScore!, cloudCoins);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Nube reemplazada exitosamente')),
@@ -263,7 +265,30 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Spacer(flex: 2),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        AudioManager().isAudioEnabled ? Icons.volume_up : Icons.volume_off,
+                        color: AudioManager().isAudioEnabled ? Colors.cyanAccent : Colors.grey,
+                        size: 32,
+                        shadows: AudioManager().isAudioEnabled
+                            ? const [Shadow(color: Colors.cyanAccent, blurRadius: 10)]
+                            : null,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          AudioManager().toggleAudio();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(flex: 1),
               // Logo
               AnimatedBuilder(
                 animation: _logoAnimController,
@@ -392,6 +417,34 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                               const SizedBox(height: 5),
                               TextButton(
                                 onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      backgroundColor: Colors.black,
+                                      shape: RoundedRectangleBorder(
+                                        side: const BorderSide(color: Colors.redAccent, width: 2),
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                      title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      content: const Text(
+                                        '¿Estás seguro de que deseas cerrar sesión? Tus datos locales se reiniciarán en este dispositivo.',
+                                        style: TextStyle(color: Colors.white70),
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                          child: const Text('CANCELAR', style: TextStyle(color: Colors.grey)),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                          child: const Text('CERRAR SESIÓN', style: TextStyle(color: Colors.redAccent)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+
+                                  if (confirm != true) return;
+
                                   await FirebaseAuth.instance.signOut();
                                   try {
                                     await GoogleSignIn().signOut();

@@ -2,7 +2,7 @@ name: neon_jump
 description: "A hyper-casual neon jumping game."
 publish_to: 'none'
 
-version: 1.0.10+13
+version: 1.0.11+14
 
 environment:
   sdk: '>=3.2.0 <4.0.0'

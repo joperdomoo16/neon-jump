@@ -29,11 +29,8 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: WillPopScope(
-        onWillPop: () async {
-          // Confirm exit if needed, for now just allow
-          return true;
-        },
+      body: PopScope(
+        canPop: true,
         child: Stack(
           children: [
             GameWidget(

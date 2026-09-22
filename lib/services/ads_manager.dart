@@ -9,6 +9,8 @@ class AdsManager {
 
   InterstitialAd? _interstitialAd;
   RewardedAd? _rewardedAd;
+  bool _isLoadingInterstitial = false;
+  bool _isLoadingRewarded = false;
   
   int _gameOverCount = 0;
   DateTime? _lastInterstitialTime;
@@ -20,30 +22,42 @@ class AdsManager {
   }
 
   void _loadInterstitialAd() {
+    if (_isLoadingInterstitial || _interstitialAd != null) return;
+    _isLoadingInterstitial = true;
     InterstitialAd.load(
       adUnitId: Constants.interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          _isLoadingInterstitial = false;
           _interstitialAd = ad;
         },
         onAdFailedToLoad: (error) {
+          _isLoadingInterstitial = false;
           _interstitialAd = null;
+          // Retry after delay (e.g. offline to online transition)
+          Future.delayed(const Duration(seconds: 30), () => _loadInterstitialAd());
         },
       ),
     );
   }
 
   void _loadRewardedAd() {
+    if (_isLoadingRewarded || _rewardedAd != null) return;
+    _isLoadingRewarded = true;
     RewardedAd.load(
       adUnitId: Constants.rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
+          _isLoadingRewarded = false;
           _rewardedAd = ad;
         },
         onAdFailedToLoad: (error) {
+          _isLoadingRewarded = false;
           _rewardedAd = null;
+          // Retry after delay
+          Future.delayed(const Duration(seconds: 30), () => _loadRewardedAd());
         },
       ),
     );
@@ -61,7 +75,9 @@ class AdsManager {
       }
 
       if (canShow && _interstitialAd != null) {
-        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+        final adToShow = _interstitialAd!;
+        _interstitialAd = null; // Clear immediately to avoid duplicate show attempts
+        adToShow.fullScreenContentCallback = FullScreenContentCallback(
           onAdDismissedFullScreenContent: (ad) {
             ad.dispose();
             _loadInterstitialAd();
@@ -71,7 +87,7 @@ class AdsManager {
             _loadInterstitialAd();
           },
         );
-        _interstitialAd!.show();
+        adToShow.show();
         _lastInterstitialTime = DateTime.now();
         _gameOverCount = 0;
       }
@@ -81,8 +97,10 @@ class AdsManager {
   void showRewardedAd({required VoidCallback onReward}) {
     if (_rewardedAd != null) {
       bool rewardEarned = false;
+      final adToShow = _rewardedAd!;
+      _rewardedAd = null; // Clear immediately
 
-      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      adToShow.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _loadRewardedAd();
@@ -96,11 +114,11 @@ class AdsManager {
           _loadRewardedAd();
         },
       );
-      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
-        // Just mark the reward as earned; don't act yet
+      adToShow.show(onUserEarnedReward: (ad, reward) {
         rewardEarned = true;
       });
-      _rewardedAd = null;
+    } else {
+      _loadRewardedAd();
     }
   }
 }

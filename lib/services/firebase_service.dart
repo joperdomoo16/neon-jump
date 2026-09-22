@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import 'package:flutter/foundation.dart';
+
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<void> submitScore(String playerName, int score) async {
+  Future<void> submitScore(String playerName, int score, {int? coins}) async {
     if (playerName.isEmpty) return;
     
     try {
@@ -25,22 +27,30 @@ class FirebaseService {
       
       if (docSnap.exists) {
         final currentScore = docSnap.data()?['score'] ?? 0;
-        await docRef.update({
+        final updateData = <String, dynamic>{
           'playerName': playerName, // Ensure name is up to date
           'score': score > currentScore ? score : currentScore,
           'timestamp': FieldValue.serverTimestamp(),
           'expiresAt': expiresAt,
-        });
+        };
+        if (coins != null) {
+          updateData['coins'] = coins;
+        }
+        await docRef.update(updateData);
       } else {
-        await docRef.set({
+        final createData = <String, dynamic>{
           'playerName': playerName,
           'score': score,
           'timestamp': FieldValue.serverTimestamp(),
           'expiresAt': expiresAt,
-        });
+        };
+        if (coins != null) {
+          createData['coins'] = coins;
+        }
+        await docRef.set(createData);
       }
     } catch (e) {
-      print('Error submitting score: $e');
+      debugPrint('Error submitting score/coins: $e');
     }
   }
 
@@ -66,16 +76,17 @@ class FirebaseService {
       
       return false; // Someone else has it or there are multiple (which shouldn't happen)
     } catch (e) {
-      print('Error checking name availability: $e');
+      debugPrint('Error checking name availability: $e');
       return false; // Assume unavailable on error to prevent duplicates
     }
   }
 
-  Stream<QuerySnapshot> getTopPlayers() {
+  Stream<QuerySnapshot> getTopPlayers({int limit = 50}) {
     return _db
         .collection('leaderboard')
         .where('score', isGreaterThan: 0)
         .orderBy('score', descending: true)
+        .limit(limit)
         .snapshots();
   }
 
@@ -103,7 +114,7 @@ class FirebaseService {
         return await _auth.signInWithCredential(credential);
       }
     } catch (e) {
-      print('Error en Google Sign-In: $e');
+      debugPrint('Error en Google Sign-In: $e');
       return null;
     }
   }
