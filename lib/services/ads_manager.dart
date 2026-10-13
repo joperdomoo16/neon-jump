@@ -17,6 +17,15 @@ class AdsManager {
 
   Future<void> init() async {
     await MobileAds.instance.initialize();
+    
+    // Configuración para cumplir con las políticas de Google Play Familias
+    RequestConfiguration requestConfiguration = RequestConfiguration(
+      tagForChildDirectedTreatment: TagForChildDirectedTreatment.yes,
+      tagForUnderAgeOfConsent: TagForUnderAgeOfConsent.yes,
+      maxAdContentRating: MaxAdContentRating.g,
+    );
+    await MobileAds.instance.updateRequestConfiguration(requestConfiguration);
+
     _loadInterstitialAd();
     _loadRewardedAd();
   }
