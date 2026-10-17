@@ -116,6 +116,8 @@ class ShopScreen extends StatelessWidget {
                                 child: Image.asset(
                                   'assets/images/${Constants.thematicSkinImages[index - 6]}',
                                   fit: BoxFit.cover,
+                                  cacheWidth: 100,
+                                  cacheHeight: 100,
                                 ),
                               )
                             : CustomPaint(
