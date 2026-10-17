@@ -11,6 +11,7 @@ import 'game_screen.dart';
 import 'shop_screen.dart';
 import 'achievements_screen.dart';
 import 'ranking_screen.dart';
+import 'package:in_app_update/in_app_update.dart';
 import '../services/audio_manager.dart';
 import '../services/ads_manager.dart';
 
@@ -31,6 +32,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _checkForAppUpdate();
     _logoAnimController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -44,6 +46,22 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
         _showNamePrompt(context, gameState);
       }
     });
+  }
+
+  Future<void> _checkForAppUpdate() async {
+    if (kIsWeb) return;
+    try {
+      final info = await InAppUpdate.checkForUpdate();
+      if (info.updateAvailability == UpdateAvailability.updateAvailable) {
+        if (info.immediateUpdateAllowed) {
+          await InAppUpdate.performImmediateUpdate();
+        }
+      } else if (info.updateAvailability == UpdateAvailability.developerTriggeredUpdateInProgress) {
+        await InAppUpdate.performImmediateUpdate();
+      }
+    } catch (e) {
+      debugPrint('ℹ️ [InAppUpdate] Verificación de actualización en Play Store: $e');
+    }
   }
 
   void _initConsentAndAds() {
