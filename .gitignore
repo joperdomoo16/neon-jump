@@ -44,3 +44,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android keystore & secrets
+key.properties
+**/key.properties
+*.jks
+*.keystore
+
+# Temporary and cache folders
+.bin/
+.firebase/
+android/.kotlin/
+node_modules/
+*.log

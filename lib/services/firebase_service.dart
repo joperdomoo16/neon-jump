@@ -8,25 +8,45 @@ class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  Future<void> submitScore(String playerName, int score, {int? coins}) async {
+  /// Garantiza que exista un usuario autenticado (anónimo si no usó Google).
+  /// Sin esto, los jugadores que no inician sesión con Google nunca
+  /// podían subir su puntaje al ranking.
+  Future<User?> ensureSignedIn() async {
+    final user = _auth.currentUser;
+    if (user != null) return user;
+    try {
+      final cred = await _auth.signInAnonymously();
+      return cred.user;
+    } catch (e) {
+      debugPrint('Error en inicio de sesión anónimo: $e');
+      return null;
+    }
+  }
+
+  Future<void> submitScore(
+    String playerName,
+    int score, {
+    int? coins,
+    List<int>? ownedSkins,
+    int? currentSkinIndex,
+    List<String>? unlockedAchievements,
+  }) async {
     if (playerName.isEmpty) return;
     
     try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null) return; // Do not submit if not logged in
-      
-      // Ensure only Google-linked accounts can upload to the leaderboard
-      bool isGoogleLinked = currentUser.providerData.any((p) => p.providerId == 'google.com');
-      if (!isGoogleLinked) return;
+      final currentUser = await ensureSignedIn();
+      if (currentUser == null) return;
       
       final String uid = currentUser.uid;
 
       final docRef = _db.collection('leaderboard').doc(uid);
       final docSnap = await docRef.get();
-      final expiresAt = Timestamp.fromDate(DateTime.now().add(const Duration(days: 30)));
+      // Retención: mientras la base de jugadores crece, no se eliminan registros por inactividad
+      // (expiresAt fijado a fecha lejana para que el TTL de Firestore no los borre hasta nuevo aviso).
+      final expiresAt = Timestamp.fromDate(DateTime(2099, 12, 31));
       
       if (docSnap.exists) {
-        final currentScore = docSnap.data()?['score'] ?? 0;
+        final currentScore = (docSnap.data()?['score'] as num?)?.toInt() ?? 0;
         final updateData = <String, dynamic>{
           'playerName': playerName, // Ensure name is up to date
           'score': score > currentScore ? score : currentScore,
@@ -35,6 +55,15 @@ class FirebaseService {
         };
         if (coins != null) {
           updateData['coins'] = coins;
+        }
+        if (ownedSkins != null) {
+          updateData['ownedSkins'] = ownedSkins;
+        }
+        if (currentSkinIndex != null) {
+          updateData['currentSkinIndex'] = currentSkinIndex;
+        }
+        if (unlockedAchievements != null) {
+          updateData['unlockedAchievements'] = unlockedAchievements;
         }
         await docRef.update(updateData);
       } else {
@@ -47,10 +76,56 @@ class FirebaseService {
         if (coins != null) {
           createData['coins'] = coins;
         }
+        if (ownedSkins != null) {
+          createData['ownedSkins'] = ownedSkins;
+        }
+        if (currentSkinIndex != null) {
+          createData['currentSkinIndex'] = currentSkinIndex;
+        }
+        if (unlockedAchievements != null) {
+          createData['unlockedAchievements'] = unlockedAchievements;
+        }
         await docRef.set(createData);
       }
     } catch (e) {
-      debugPrint('Error submitting score/coins: $e');
+      debugPrint('Error submitting score/coins/skins/achievements: $e');
+    }
+  }
+
+  /// Sobrescribe por completo los datos del usuario actual en la nube.
+  /// Se usa cuando el jugador elige REEMPLAZAR los datos de su cuenta de Google
+  /// por los de la partida actual. Como las reglas no permiten bajar el puntaje
+  /// con una actualización, se borra el registro y se crea de nuevo.
+  Future<bool> overwriteUserData(
+    String playerName,
+    int score,
+    int coins, {
+    List<int>? ownedSkins,
+    int? currentSkinIndex,
+    List<String>? unlockedAchievements,
+  }) async {
+    if (playerName.isEmpty) return false;
+    try {
+      final currentUser = await ensureSignedIn();
+      if (currentUser == null) return false;
+
+      final docRef = _db.collection('leaderboard').doc(currentUser.uid);
+      await docRef.delete();
+      final data = <String, dynamic>{
+        'playerName': playerName,
+        'score': score,
+        'coins': coins,
+        'timestamp': FieldValue.serverTimestamp(),
+        'expiresAt': Timestamp.fromDate(DateTime(2099, 12, 31)),
+      };
+      if (ownedSkins != null) data['ownedSkins'] = ownedSkins;
+      if (currentSkinIndex != null) data['currentSkinIndex'] = currentSkinIndex;
+      if (unlockedAchievements != null) data['unlockedAchievements'] = unlockedAchievements;
+      await docRef.set(data);
+      return true;
+    } catch (e) {
+      debugPrint('Error sobrescribiendo datos del usuario: $e');
+      return false;
     }
   }
 
@@ -81,13 +156,17 @@ class FirebaseService {
     }
   }
 
-  Stream<QuerySnapshot> getTopPlayers({int limit = 50}) {
-    return _db
+  /// Stream en vivo con todos los jugadores cuyo puntaje es mayor a 0 (diferente de cero).
+  /// Por defecto no limita la consulta para incluir a todos los jugadores activos.
+  Stream<QuerySnapshot> getTopPlayers({int? limit}) {
+    Query query = _db
         .collection('leaderboard')
         .where('score', isGreaterThan: 0)
-        .orderBy('score', descending: true)
-        .limit(limit)
-        .snapshots();
+        .orderBy('score', descending: true);
+    if (limit != null && limit > 0) {
+      query = query.limit(limit);
+    }
+    return query.snapshots();
   }
 
   Future<UserCredential?> signInWithGoogle() async {
@@ -104,10 +183,19 @@ class FirebaseService {
       final User? currentUser = _auth.currentUser;
       if (currentUser != null && currentUser.isAnonymous) {
         try {
-          // Link anonymous to Google to keep data
+          // Link anonymous to Google to keep data (same uid => no duplicates)
           return await currentUser.linkWithCredential(credential);
-        } catch (e) {
-          // If already linked or error, just sign in
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'credential-already-in-use') {
+            // La cuenta de Google ya tiene su propio registro en el ranking.
+            // Borramos el registro anónimo para que el jugador no aparezca dos veces.
+            // El progreso local se conserva y se resuelve en loginWithGoogle().
+            try {
+              await _db.collection('leaderboard').doc(currentUser.uid).delete();
+            } catch (err) {
+              debugPrint('No se pudo borrar el registro anónimo: $err');
+            }
+          }
           return await _auth.signInWithCredential(credential);
         }
       } else {
@@ -124,5 +212,22 @@ class FirebaseService {
     if (uid == null) return null;
     final doc = await _db.collection('leaderboard').doc(uid).get();
     return doc.data();
+  }
+
+  Future<Map<String, dynamic>?> getDataByPlayerName(String name) async {
+    try {
+      final query = await _db
+          .collection('leaderboard')
+          .where('playerName', isEqualTo: name)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        return query.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error buscando datos del jugador $name: $e');
+      return null;
+    }
   }
 }

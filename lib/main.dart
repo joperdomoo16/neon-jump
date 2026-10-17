@@ -17,10 +17,12 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.playIntegrity,
-    appleProvider: AppleProvider.deviceCheck,
-  );
+  if (!kIsWeb) {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: AndroidProvider.playIntegrity,
+      appleProvider: AppleProvider.deviceCheck,
+    );
+  }
   
   // Set preferred orientation to portrait
   await SystemChrome.setPreferredOrientations([
@@ -30,12 +32,21 @@ void main() async {
 
   // Hide system overlays for full screen experience
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
 
   final gameState = GameState();
   await gameState.init();
 
   if (!kIsWeb) {
-    await AdsManager().init();
+    AdsManager().gatherConsent();
   }
   await AudioManager().init();
 

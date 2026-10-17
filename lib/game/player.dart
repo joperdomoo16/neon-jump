@@ -13,6 +13,10 @@ import '../services/audio_manager.dart';
 class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCallbacks {
   Vector2 velocity = Vector2.zero();
   double _particleTimer = 0.0;
+  double _rollAngle = 0.0;
+  double _squashX = 1.0;
+  double _squashY = 1.0;
+  double _pulseTimer = 0.0;
   
   Player() : super(radius: 15, anchor: Anchor.center);
 
@@ -33,6 +37,7 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
   void update(double dt) {
     super.update(dt);
     
+    if (!isMounted) return;
     if (gameRef.waitingForInput) return;
     
     // Apply gravity
@@ -48,6 +53,17 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
     } else if (position.x < radius) {
       position.x = radius;
       velocity.x = 0;
+    }
+
+    // Update animations
+    _pulseTimer += dt;
+    _squashX += (1.0 - _squashX) * (dt * 14.0);
+    _squashY += (1.0 - _squashY) * (dt * 14.0);
+    if (velocity.x.abs() > 5) {
+      _rollAngle += (velocity.x / radius) * dt * 0.9;
+    } else if (velocity.y.abs() > 40) {
+      // Gentle spin during free flight
+      _rollAngle += (velocity.y > 0 ? 0.3 : -0.3) * dt;
     }
 
     _particleTimer += dt;
@@ -102,6 +118,10 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
   void jump(double multiplier) {
     velocity.y = Constants.playerJumpVelocity * multiplier;
     
+    // Bouncy squash & stretch effect on impact
+    _squashX = 1.25;
+    _squashY = 0.75;
+
     // Play appropriate sound
     if (multiplier > 1.0) {
       AudioManager().playSpring();
@@ -120,6 +140,7 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
   final Paint _sparklePaint = Paint()..style = PaintingStyle.fill;
 
   void _spawnBounceParticles() {
+    if (!isMounted) return;
     final random = Random();
     final color = Constants.neonColors[gameRef.gameState.currentSkinIndex];
     
@@ -211,36 +232,67 @@ class Player extends CircleComponent with HasGameRef<NeonJumpGame>, CollisionCal
     
   @override
   void render(Canvas canvas) {
+    canvas.save();
+    canvas.translate(radius, radius);
+    canvas.scale(_squashX, _squashY);
+    canvas.translate(-radius, -radius);
+
     int skinIndex = gameRef.gameState.currentSkinIndex;
     if (skinIndex < 6) {
       super.render(canvas); // Neon
     } else {
       _renderThematicSkin(canvas, skinIndex);
     }
+
+    canvas.restore();
   }
 
   void _renderThematicSkin(Canvas canvas, int skinIndex) {
     final center = Offset(radius, radius);
+    final thematicIndex = skinIndex - 6;
     
-    if (skinIndex >= 6 && skinIndex <= 10) {
+    if (thematicIndex >= 0 && thematicIndex < Constants.thematicSkinImages.length) {
       var sprite = _thematicSprites[skinIndex];
       if (sprite == null) {
-        String imageName = '';
-        if (skinIndex == 6) imageName = 'skin_basketball.png';
-        else if (skinIndex == 7) imageName = 'skin_tennis.png';
-        else if (skinIndex == 8) imageName = 'skin_volleyball.png';
-        else if (skinIndex == 9) imageName = 'skin_soccer.png';
-        else if (skinIndex == 10) imageName = 'skin_bowling.png';
-
+        final imageName = Constants.thematicSkinImages[thematicIndex];
         sprite = Sprite(gameRef.images.fromCache(imageName));
         _thematicSprites[skinIndex] = sprite;
       }
 
+      final skinColor = Constants.neonColors[skinIndex];
+
+      // Ambient pulsing neon glow behind the ball
+      final glowPaint = Paint()
+        ..color = skinColor.withOpacity(0.35 + 0.15 * sin(_pulseTimer * 4))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawCircle(center, radius, glowPaint);
+
+      canvas.save();
+      // Rolling rotation animation around ball center
+      canvas.translate(radius, radius);
+      canvas.rotate(_rollAngle);
+      canvas.translate(-radius, -radius);
+
+      // Circular clipping mask: guarantees 100% round ball fit without distortion
+      final clipPath = Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+      canvas.clipPath(clipPath);
+
+      // Draw the 1:1 sprite
       sprite.render(canvas, size: Vector2(radius * 2, radius * 2));
+      canvas.restore();
+
+      // Sharp glowing edge rim
+      final rimPaint = Paint()
+        ..color = skinColor.withOpacity(0.55)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+      canvas.drawCircle(center, radius, rimPaint);
       return;
     }
 
-    // Draw base color
+    // Draw base color fallback
     _skinPaint.color = Constants.neonColors[skinIndex];
     canvas.drawCircle(center, radius, _skinPaint);
   }

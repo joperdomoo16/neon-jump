@@ -22,8 +22,12 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     final gameState = Provider.of<GameState>(context, listen: false);
-    gameState.resetCurrentScore();
     _game = NeonJumpGame(gameState: gameState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        gameState.resetCurrentScore();
+      }
+    });
   }
 
   @override

@@ -17,12 +17,17 @@ service cloud.firestore {
                    && request.auth.uid == userId
                    && isValidScoreData(request.resource.data)
                    && request.resource.data.score >= resource.data.score;
+
+      // Permitir que el dueño borre su propio registro (evita duplicados
+      // al pasar de cuenta anónima a una cuenta de Google ya existente)
+      allow delete: if request.auth != null 
+                   && request.auth.uid == userId;
     }
     
     // Helper function to validate leaderboard data
     function isValidScoreData(data) {
       // hasOnly previene que inyecten campos basura como isAdmin
-      return data.keys().hasOnly(['playerName', 'score', 'coins', 'timestamp', 'expiresAt'])
+      return data.keys().hasOnly(['playerName', 'score', 'coins', 'timestamp', 'expiresAt', 'ownedSkins', 'currentSkinIndex', 'unlockedAchievements'])
              && data.score is int 
              && data.score >= 0 
              && data.score <= 500000
@@ -31,7 +36,10 @@ service cloud.firestore {
              && data.playerName.size() > 0 
              && data.playerName.size() <= 20
              && data.timestamp == request.time
-             && data.expiresAt is timestamp;
+             && data.expiresAt is timestamp
+             && (!('ownedSkins' in data) || (data.ownedSkins is list && data.ownedSkins.size() <= 50))
+             && (!('currentSkinIndex' in data) || (data.currentSkinIndex is int && data.currentSkinIndex >= 0 && data.currentSkinIndex <= 50))
+             && (!('unlockedAchievements' in data) || (data.unlockedAchievements is list && data.unlockedAchievements.size() <= 50));
     }
   }
 }

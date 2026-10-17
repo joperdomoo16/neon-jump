@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 
@@ -26,22 +27,35 @@ class _GameOverState extends State<GameOver> {
     _loadBannerAd();
   }
 
-  void _loadBannerAd() {
-    _bannerAd = BannerAd(
-      adUnitId: Constants.bannerAdUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: BannerAdListener(
-        onAdLoaded: (_) {
-          setState(() {
-            _isBannerAdLoaded = true;
-          });
-        },
-        onAdFailedToLoad: (ad, error) {
-          ad.dispose();
-        },
-      ),
-    )..load();
+  void _loadBannerAd() async {
+    if (kIsWeb) return;
+    try {
+      if (!await ConsentInformation.instance.canRequestAds()) return;
+      if (!mounted) return;
+      _bannerAd = BannerAd(
+        adUnitId: Constants.bannerAdUnitId,
+        size: AdSize.banner,
+        request: const AdRequest(),
+        listener: BannerAdListener(
+          onAdLoaded: (_) {
+            if (mounted) {
+              setState(() {
+                _isBannerAdLoaded = true;
+              });
+            }
+          },
+          onAdFailedToLoad: (ad, error) {
+            debugPrint('⚠️ [AdMob] Error al cargar banner en GameOver: ${error.message} (Código: ${error.code})');
+            ad.dispose();
+          },
+        ),
+      );
+      _bannerAd?.load().catchError((e) {
+        debugPrint('⚠️ [AdMob] GameOver Banner load handled: $e');
+      });
+    } catch (e) {
+      debugPrint('AdMob banner unavailable: $e');
+    }
   }
 
   @override

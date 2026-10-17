@@ -58,6 +58,7 @@ class ShopScreen extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 20,
               mainAxisSpacing: 20,
+              childAspectRatio: 0.88,
             ),
             itemCount: skins.length,
             itemBuilder: (context, index) {
@@ -75,7 +76,10 @@ class ShopScreen extends StatelessWidget {
                       gameState.unlockSkin(index, skin['cost']);
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Not enough coins!')),
+                        const SnackBar(
+                          content: Text('¡Monedas insuficientes!'),
+                          duration: Duration(seconds: 2),
+                        ),
                       );
                     }
                   }
@@ -100,12 +104,17 @@ class ShopScreen extends StatelessWidget {
                         height: 50,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          boxShadow: index < 6 ? [BoxShadow(color: color, blurRadius: 15)] : [],
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withOpacity(isEquipped ? 0.8 : 0.3),
+                              blurRadius: 12,
+                            ),
+                          ],
                         ),
                         child: index >= 6
                             ? ClipOval(
                                 child: Image.asset(
-                                  'assets/images/skin_${['basketball', 'tennis', 'volleyball', 'soccer', 'bowling'][index - 6]}.png',
+                                  'assets/images/${Constants.thematicSkinImages[index - 6]}',
                                   fit: BoxFit.cover,
                                 ),
                               )
@@ -162,76 +171,6 @@ class SkinPreviewPainter extends CustomPainter {
     
     skinPaint.color = baseColor;
     canvas.drawCircle(center, radius, skinPaint);
-    
-    if (skinIndex < 6) return;
-
-    final linePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..color = Colors.black;
-
-    if (skinIndex == 6) { // Basketball
-      canvas.drawCircle(center, radius, linePaint);
-      canvas.drawLine(Offset(radius, 0), Offset(radius, radius * 2), linePaint);
-      canvas.drawLine(Offset(0, radius), Offset(radius * 2, radius), linePaint);
-      
-      final path = Path();
-      path.moveTo(radius * 0.3, 0);
-      path.quadraticBezierTo(radius * 1.5, radius, radius * 0.3, radius * 2);
-      canvas.drawPath(path, linePaint);
-      
-      final path2 = Path();
-      path2.moveTo(radius * 1.7, 0);
-      path2.quadraticBezierTo(radius * 0.5, radius, radius * 1.7, radius * 2);
-      canvas.drawPath(path2, linePaint);
-    } 
-    else if (skinIndex == 7) { // Tennis
-      linePaint.color = Colors.white;
-      canvas.drawCircle(center, radius, linePaint);
-      
-      final path = Path();
-      path.moveTo(0, radius * 0.5);
-      path.quadraticBezierTo(radius, radius, 0, radius * 1.5);
-      canvas.drawPath(path, linePaint);
-      
-      final path2 = Path();
-      path2.moveTo(radius * 2, radius * 0.5);
-      path2.quadraticBezierTo(radius, radius, radius * 2, radius * 1.5);
-      canvas.drawPath(path2, linePaint);
-    }
-    else if (skinIndex == 8) { // Volleyball
-      linePaint.color = Colors.blueAccent;
-      canvas.drawCircle(center, radius, linePaint);
-      canvas.drawLine(Offset(radius * 0.5, 0), Offset(radius * 1.5, radius * 2), linePaint);
-      canvas.drawLine(Offset(radius * 1.5, 0), Offset(radius * 0.5, radius * 2), linePaint);
-      canvas.drawLine(Offset(0, radius), Offset(radius * 2, radius), linePaint);
-    }
-    else if (skinIndex == 9) { // Soccer
-      final path = Path();
-      double s = radius * 0.3;
-      path.moveTo(radius, radius - s);
-      path.lineTo(radius + s, radius - s * 0.2);
-      path.lineTo(radius + s * 0.6, radius + s * 0.8);
-      path.lineTo(radius - s * 0.6, radius + s * 0.8);
-      path.lineTo(radius - s, radius - s * 0.2);
-      path.close();
-      
-      final fillPaint = Paint()..color = Colors.black..style = PaintingStyle.fill;
-      canvas.drawPath(path, fillPaint);
-      canvas.drawCircle(center, radius, linePaint);
-      
-      canvas.drawLine(Offset(radius, radius - s), Offset(radius, 0), linePaint);
-      canvas.drawLine(Offset(radius + s, radius - s * 0.2), Offset(radius * 2, radius * 0.3), linePaint);
-      canvas.drawLine(Offset(radius + s * 0.6, radius + s * 0.8), Offset(radius * 1.8, radius * 1.8), linePaint);
-      canvas.drawLine(Offset(radius - s * 0.6, radius + s * 0.8), Offset(radius * 0.2, radius * 1.8), linePaint);
-      canvas.drawLine(Offset(radius - s, radius - s * 0.2), Offset(0, radius * 0.3), linePaint);
-    }
-    else if (skinIndex == 10) { // Bowling
-      final holePaint = Paint()..color = Colors.black54..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(radius * 0.7, radius * 0.6), radius * 0.15, holePaint);
-      canvas.drawCircle(Offset(radius * 1.3, radius * 0.6), radius * 0.15, holePaint);
-      canvas.drawCircle(Offset(radius, radius * 1.2), radius * 0.18, holePaint);
-    }
   }
 
   @override

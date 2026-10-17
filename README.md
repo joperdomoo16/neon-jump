@@ -4,7 +4,7 @@
 [![Flame Engine](https://img.shields.io/badge/Flame-1.18.0-E65100?logo=flame&logoColor=white)](https://flame-engine.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20App%20Check-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![AdMob](https://img.shields.io/badge/Google%20AdMob-Monetization-4285F4?logo=google-ads&logoColor=white)](https://admob.google.com/)
-[![Versión](https://img.shields.io/badge/Versión-1.0.13%2B16-brightgreen.svg)]()
+[![Versión](https://img.shields.io/badge/Versión-1.0.14%2B17-brightgreen.svg)]()
 
 **Neon Jump** es un juego arcade hipercasual de saltos infinitos con una llamativa estética retro neón, físicas 2D dinámicas, efectos visuales de resplandor (glow), partículas y una experiencia inmersiva optimizada para dispositivos móviles.
 

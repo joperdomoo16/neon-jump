@@ -9,6 +9,7 @@ import 'background.dart';
 import '../services/game_state.dart';
 import '../services/audio_manager.dart';
 import '../services/ads_manager.dart';
+import '../utils/constants.dart';
 
 class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, TapCallbacks {
   final GameState gameState;
@@ -19,40 +20,34 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
   double cameraMaxY = 0;
   bool isPlaying = true;
   
-  // Controls - tracks the current touch X position, null if not touching
-  double? _touchX;
   // Tracks which half of the screen is being held (for tap-based fallback)
   double dragDirection = 0; // -1 for left, 1 for right, 0 for neutral
   
   bool waitingForInput = true;
 
-  NeonJumpGame({required this.gameState});
+  NeonJumpGame({required this.gameState}) {
+    player = Player();
+    background = Background();
+    platformManager = PlatformManager(gameRef: this);
+  }
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
     
     // Load images
-    await images.loadAll([
-      'skin_soccer.png',
-      'skin_tennis.png',
-      'skin_basketball.png',
-      'skin_volleyball.png',
-      'skin_bowling.png',
-    ]);
+    try {
+      await images.loadAll(Constants.thematicSkinImages);
+    } catch (_) {}
     
     // Add background
-    background = Background();
     add(background);
     
     // Add player
-    player = Player();
-    // Start player perfectly resting on the initial platform
     player.position = Vector2(size.x / 2, size.y - 75);
     world.add(player);
     
     // Add platform manager
-    platformManager = PlatformManager(gameRef: this);
     world.add(platformManager);
 
     // Initial platform directly under player
@@ -69,13 +64,7 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
       images.clearCache();
     } else if (state == AppLifecycleState.resumed) {
       pauseEngine(); // Keep it paused while loading
-      images.loadAll([
-        'skin_soccer.png',
-        'skin_tennis.png',
-        'skin_basketball.png',
-        'skin_volleyball.png',
-        'skin_bowling.png',
-      ]).then((_) {
+      images.loadAll(Constants.thematicSkinImages).then((_) {
         resumeEngine();
       });
     }
@@ -137,7 +126,6 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
 
   void gameOver() {
     isPlaying = false;
-    _touchX = null;
     dragDirection = 0;
     AudioManager().playGameOver();
     gameState.setGameOver(true);
@@ -148,22 +136,22 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
 
   // --- Drag-based input handling (continuous touch) ---
   
-  double _touchOffset = 0;
   double? _targetX;
 
-  @override
-  void onDragStart(DragStartEvent event) {
+  void startGame() {
     if (waitingForInput) {
       waitingForInput = false;
       overlays.remove('TapToStart');
       overlays.add('Hud');
       player.jump(1.0);
     }
-    
+  }
+
+  @override
+  void onDragStart(DragStartEvent event) {
+    startGame();
     super.onDragStart(event);
-    // Calculate the difference between current player position and the touch.
-    // This allows relative dragging (ball moves exactly as much as the finger).
-    _touchOffset = player.position.x - event.canvasPosition.x;
+    // Relative dragging (ball moves exactly as much as the finger).
     _targetX = player.position.x;
   }
 
@@ -193,15 +181,9 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
   // --- Tap-based input as fallback ---
   @override
   void onTapDown(TapDownEvent event) {
-    if (waitingForInput) {
-      waitingForInput = false;
-      overlays.remove('TapToStart');
-      overlays.add('Hud');
-      player.jump(1.0);
-    }
+    startGame();
     
     super.onTapDown(event);
-    _touchOffset = player.position.x - event.canvasPosition.x;
     _targetX = player.position.x;
   }
 
@@ -229,7 +211,6 @@ class NeonJumpGame extends FlameGame with HasCollisionDetection, DragCallbacks, 
     
     isPlaying = true;
     waitingForInput = true;
-    _touchX = null;
     gameState.setGameOver(false);
     gameState.incrementRevives();
     
