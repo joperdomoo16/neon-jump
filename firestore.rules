@@ -27,14 +27,16 @@ service cloud.firestore {
     // Helper function to validate leaderboard data
     function isValidScoreData(data) {
       // hasOnly previene que inyecten campos basura como isAdmin
-      return data.keys().hasOnly(['playerName', 'score', 'coins', 'timestamp', 'expiresAt', 'ownedSkins', 'currentSkinIndex', 'unlockedAchievements'])
+      return data.keys().hasOnly(['playerName', 'normalizedName', 'score', 'coins', 'timestamp', 'expiresAt', 'ownedSkins', 'currentSkinIndex', 'unlockedAchievements'])
              && data.score is int 
              && data.score >= 0 
              && data.score <= 500000
              && (!('coins' in data) || (data.coins is int && data.coins >= 0 && data.coins <= 1000000))
              && data.playerName is string 
-             && data.playerName.size() > 0 
+             && data.playerName.size() >= 3 
              && data.playerName.size() <= 20
+             && data.playerName.matches('^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ _\\.-]+$')
+             && (!('normalizedName' in data) || (data.normalizedName is string && data.normalizedName.size() >= 3 && data.normalizedName.size() <= 20))
              && data.timestamp == request.time
              && data.expiresAt is timestamp
              && (!('ownedSkins' in data) || (data.ownedSkins is list && data.ownedSkins.size() <= 50))

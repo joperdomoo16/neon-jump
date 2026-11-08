@@ -13,9 +13,7 @@ dependencies:
   flame: ^1.18.0
   flame_audio: ^2.1.8
   google_mobile_ads: ^9.0.0
-  shared_preferences: ^2.2.3
   vibration: ^3.2.0
-  google_fonts: ^6.2.1
   provider: ^6.1.2
   firebase_core: ^4.11.0
   cloud_firestore: ^6.6.0
@@ -38,12 +36,11 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/audio/
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo.png"
+  image_path: "assets/icon/logo.png"
   min_sdk_android: 21
   adaptive_icon_background: "#0F0C29"
-  adaptive_icon_foreground: "assets/images/logo.png"
+  adaptive_icon_foreground: "assets/icon/logo.png"

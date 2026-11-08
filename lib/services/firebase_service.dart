@@ -7,6 +7,13 @@ import 'package:flutter/foundation.dart';
 class FirebaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final RegExp _nombrePermitidoRegex = RegExp(r'^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ _\.-]{3,20}$');
+
+  static bool esNombreSeguro(String nombre) {
+    final limpio = nombre.trim();
+    return _nombrePermitidoRegex.hasMatch(limpio) &&
+        RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ]').hasMatch(limpio);
+  }
 
   /// Garantiza que exista un usuario autenticado (anónimo si no usó Google).
   /// Sin esto, los jugadores que no inician sesión con Google nunca
@@ -23,6 +30,18 @@ class FirebaseService {
     }
   }
 
+  /// Normaliza el nombre de usuario a minúsculas y sin tildes/acentos
+  /// para evitar suplantaciones o nombres duplicados casi idénticos.
+  static String normalizeUsername(String name) {
+    var result = name.trim().toLowerCase();
+    const withDiacritics = 'áàäâãéèëêíìïîóòöôõúùüûñ';
+    const withoutDiacritics = 'aaaaaeeeeiiiiooooouuuun';
+    for (int i = 0; i < withDiacritics.length; i++) {
+      result = result.replaceAll(withDiacritics[i], withoutDiacritics[i]);
+    }
+    return result.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
   Future<void> submitScore(
     String playerName,
     int score, {
@@ -31,7 +50,7 @@ class FirebaseService {
     int? currentSkinIndex,
     List<String>? unlockedAchievements,
   }) async {
-    if (playerName.isEmpty) return;
+    if (!esNombreSeguro(playerName)) return;
     
     try {
       final currentUser = await ensureSignedIn();
@@ -49,6 +68,7 @@ class FirebaseService {
         final currentScore = (docSnap.data()?['score'] as num?)?.toInt() ?? 0;
         final updateData = <String, dynamic>{
           'playerName': playerName, // Ensure name is up to date
+          'normalizedName': normalizeUsername(playerName),
           'score': score > currentScore ? score : currentScore,
           'timestamp': FieldValue.serverTimestamp(),
           'expiresAt': expiresAt,
@@ -69,6 +89,7 @@ class FirebaseService {
       } else {
         final createData = <String, dynamic>{
           'playerName': playerName,
+          'normalizedName': normalizeUsername(playerName),
           'score': score,
           'timestamp': FieldValue.serverTimestamp(),
           'expiresAt': expiresAt,
@@ -104,7 +125,7 @@ class FirebaseService {
     int? currentSkinIndex,
     List<String>? unlockedAchievements,
   }) async {
-    if (playerName.isEmpty) return false;
+    if (!esNombreSeguro(playerName)) return false;
     try {
       final currentUser = await ensureSignedIn();
       if (currentUser == null) return false;
@@ -113,6 +134,7 @@ class FirebaseService {
       await docRef.delete();
       final data = <String, dynamic>{
         'playerName': playerName,
+        'normalizedName': normalizeUsername(playerName),
         'score': score,
         'coins': coins,
         'timestamp': FieldValue.serverTimestamp(),
@@ -130,29 +152,43 @@ class FirebaseService {
   }
 
   Future<bool> isNameAvailable(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.length < 3 || trimmed.length > 20) return false;
+    final normalized = normalizeUsername(trimmed);
+
     try {
-      final query = _db.collection('leaderboard').where('playerName', isEqualTo: name);
-      final AggregateQuerySnapshot snapshot = await query.count().get();
+      // 1. Consultar por nombre normalizado (Alternativa B: insensibilidad a mayúsculas y tildes)
+      final queryNorm = await _db
+          .collection('leaderboard')
+          .where('normalizedName', isEqualTo: normalized)
+          .get();
 
-      if (snapshot.count == 0) {
-        return true; // Name is totally free
-      }
+      final currentUid = _auth.currentUser?.uid;
 
-      if (snapshot.count == 1) {
-        // If the name exists once, check if it belongs to the current user
-        final currentUid = _auth.currentUser?.uid;
-        if (currentUid != null) {
-          final doc = await _db.collection('leaderboard').doc(currentUid).get();
-          if (doc.exists && doc.data()?['playerName'] == name) {
-            return true; // Current user owns it
-          }
+      if (queryNorm.docs.isEmpty) {
+        // Fallback para documentos antiguos que pudieran no tener normalizedName
+        final queryLegacy = await _db
+            .collection('leaderboard')
+            .where('playerName', isEqualTo: trimmed)
+            .get();
+        if (queryLegacy.docs.isEmpty) {
+          return true; // Completamente libre
         }
+        if (queryLegacy.docs.length == 1 && currentUid != null) {
+          return queryLegacy.docs.first.id == currentUid;
+        }
+        return false;
       }
-      
-      return false; // Someone else has it or there are multiple (which shouldn't happen)
+
+      if (queryNorm.docs.length == 1 && currentUid != null) {
+        // Si ya existe una vez, verificar si le pertenece al usuario actual
+        return queryNorm.docs.first.id == currentUid;
+      }
+
+      return false; // Alguien más lo tiene
     } catch (e) {
-      debugPrint('Error checking name availability: $e');
-      return false; // Assume unavailable on error to prevent duplicates
+      debugPrint('Error comprobando disponibilidad de nombre: $e');
+      return false;
     }
   }
 
@@ -216,11 +252,19 @@ class FirebaseService {
 
   Future<Map<String, dynamic>?> getDataByPlayerName(String name) async {
     try {
-      final query = await _db
+      final normalized = normalizeUsername(name);
+      var query = await _db
           .collection('leaderboard')
-          .where('playerName', isEqualTo: name)
+          .where('normalizedName', isEqualTo: normalized)
           .limit(1)
           .get();
+      if (query.docs.isEmpty) {
+        query = await _db
+            .collection('leaderboard')
+            .where('playerName', isEqualTo: name.trim())
+            .limit(1)
+            .get();
+      }
       if (query.docs.isNotEmpty) {
         return query.docs.first.data();
       }

@@ -18,10 +18,13 @@ void main() async {
   );
   
   if (!kIsWeb) {
-    await FirebaseAppCheck.instance.activate(
+    // Activar AppCheck en segundo plano para optimizar el cold start
+    FirebaseAppCheck.instance.activate(
       androidProvider: AndroidProvider.playIntegrity,
       appleProvider: AppleProvider.deviceCheck,
-    );
+    ).catchError((e) {
+      debugPrint('AppCheck error: $e');
+    });
   }
   
   // Set preferred orientation to portrait

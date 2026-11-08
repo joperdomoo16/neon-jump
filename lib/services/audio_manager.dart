@@ -9,7 +9,7 @@ class AudioManager {
 
   final StorageRepository _storage = StorageRepository();
   bool _isAudioEnabled = true;
-  bool _audioFilesAvailable = true;
+  bool _audioFilesAvailable = false;
 
   Future<void> init() async {
     final savedAudio = await _storage.readBool('isAudioEnabled');
@@ -17,19 +17,18 @@ class AudioManager {
       _isAudioEnabled = savedAudio;
     }
 
-    // Try to preload — if files don't exist, disable audio gracefully
-    try {
-      await FlameAudio.audioCache.loadAll([
-        'bounce.wav',
-        'spring.wav',
-        'coin.wav',
-        'game_over.wav',
-        'new_record.wav',
-      ]);
-    } catch (e) {
+    // Preload en segundo plano para no bloquear el hilo principal durante el arranque
+    FlameAudio.audioCache.loadAll([
+      'bounce.wav',
+      'spring.wav',
+      'coin.wav',
+      'game_over.wav',
+      'new_record.wav',
+    ]).then((_) {
+      _audioFilesAvailable = true;
+    }).catchError((_) {
       _audioFilesAvailable = false;
-      // Audio files not found — the app will run silently without crashing
-    }
+    });
   }
 
   void toggleAudio() {

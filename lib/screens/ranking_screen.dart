@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../services/game_state.dart';
@@ -27,6 +28,129 @@ class _RankingScreenState extends State<RankingScreen> {
     });
   }
 
+  void _showSetPlayerNameDialog(BuildContext context, GameState gameState) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        String enteredName = '';
+        bool isChecking = false;
+        String? errorMessage;
+
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            void checkAndSave() async {
+              final trimmedName = enteredName.trim();
+              if (trimmedName.isEmpty) return;
+
+              if (trimmedName.length < 3) {
+                setDialogState(() {
+                  errorMessage = 'El nombre debe tener al menos 3 caracteres.';
+                });
+                return;
+              }
+
+              if (trimmedName.length > 20) {
+                setDialogState(() {
+                  errorMessage = 'El nombre no puede superar los 20 caracteres.';
+                });
+                return;
+              }
+
+              if (!RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ]').hasMatch(trimmedName)) {
+                setDialogState(() {
+                  errorMessage = 'El nombre debe contener al menos una letra o número.';
+                });
+                return;
+              }
+
+              setDialogState(() {
+                isChecking = true;
+                errorMessage = null;
+              });
+
+              bool isAvailable = await gameState.isNameAvailable(trimmedName);
+              if (!mounted || !dialogCtx.mounted) return;
+
+              if (isAvailable) {
+                gameState.setPlayerName(trimmedName);
+                _refresh();
+                Navigator.of(dialogCtx).pop();
+              } else {
+                setDialogState(() {
+                  isChecking = false;
+                  errorMessage = 'Ese nombre ya está en uso. ¡Elige otro!';
+                });
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                side: const BorderSide(color: Colors.cyanAccent, width: 2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: const Text('Ingresa tu nombre', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Elige tu nombre para figurar en el Ranking Global:', style: TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 15),
+                    TextField(
+                      style: const TextStyle(color: Colors.white),
+                      maxLength: 20,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ _\.-]')),
+                      ],
+                      decoration: InputDecoration(
+                        counterStyle: const TextStyle(color: Colors.white38),
+                        hintText: 'Tu nombre (3-20 letras)',
+                        hintStyle: const TextStyle(color: Colors.white30),
+                        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.cyanAccent)),
+                        focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.cyanAccent)),
+                        errorText: errorMessage,
+                        errorMaxLines: 2,
+                      ),
+                      onChanged: (val) {
+                        enteredName = val;
+                        if (errorMessage != null) {
+                          setDialogState(() { errorMessage = null; });
+                        }
+                      },
+                      onSubmitted: (val) {
+                        if (!isChecking) checkAndSave();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isChecking ? null : () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
+                ),
+                isChecking
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.cyanAccent, strokeWidth: 2),
+                        ),
+                      )
+                    : ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent),
+                        onPressed: checkAndSave,
+                        child: const Text('GUARDAR', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,20 +177,18 @@ class _RankingScreenState extends State<RankingScreen> {
               if (gameState.playerName.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: TextField(
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: 'Enter your name to join leaderboard',
-                      labelStyle: TextStyle(color: Colors.cyanAccent),
-                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.cyanAccent)),
-                      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.cyanAccent)),
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.cyanAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    onSubmitted: (val) {
-                      if (val.trim().isNotEmpty) {
-                        gameState.setPlayerName(val.trim());
-                        _refresh();
-                      }
-                    },
+                    icon: const Icon(Icons.person_add, color: Colors.cyanAccent),
+                    label: const Text(
+                      'Ingresa tu nombre para unirte al Ranking',
+                      style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () => _showSetPlayerNameDialog(context, gameState),
                   ),
                 )
               else 
@@ -85,15 +207,16 @@ class _RankingScreenState extends State<RankingScreen> {
                       return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
                     }
                     if (snapshot.hasError) {
+                      debugPrint('Error cargando ranking: ${snapshot.error}');
                       return Center(
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                'Error: ${snapshot.error}', 
-                                style: const TextStyle(color: Colors.red),
+                              const Text(
+                                'No pudimos cargar el ranking en este momento. Revisa tu conexión e intenta de nuevo.',
+                                style: TextStyle(color: Colors.redAccent),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 12),
