@@ -1,0 +1,107 @@
+/* Variables de tema y estilos base de interfaz */
+:root {
+  --tinta: #16132E;
+  --tinta-2: #1F1B40;
+  --tinta-3: #2A2552;
+  --hueso: #F3F1FF;
+  --hueso-2: #BDB7E0;
+  --hueso-3: #908AB9;
+  --linea: rgba(243, 241, 255, 0.12);
+  --linea-fuerte: rgba(243, 241, 255, 0.30);
+  --acento: #4FD8E8;
+  --acento-hondo: #2A8FA3;
+  --rosa: #F0577E;
+  --rosa-hondo: #A8335A;
+  --amarillo: #F2CF5B;
+  --verde: #5ED6A0;
+  --coral: #FF7B6B;
+  --oro: #F5C84C;
+  --cielo-noche: linear-gradient(180deg, #1B1840 0%, #3D3068 100%);
+  --radio: 14px;
+  --radio-chico: 10px;
+  --f-titular: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --f-cuerpo: 'Archivo', system-ui, sans-serif;
+  --trans: 180ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.nj-raiz { box-sizing: border-box; font-family: var(--f-cuerpo); color: var(--hueso); background: var(--tinta); -webkit-font-smoothing: antialiased; }
+.nj-raiz *, .nj-raiz *::before, .nj-raiz *::after { box-sizing: border-box; }
+.nj-raiz button { font: inherit; color: inherit; cursor: pointer; }
+
+/* Patrón de estrellas de fondo */
+.nj-puntos { background-image: radial-gradient(rgba(243, 241, 255, 0.11) 1px, transparent 1.4px), radial-gradient(rgba(243, 241, 255, 0.06) 1px, transparent 1.4px); background-size: 46px 46px, 29px 29px; background-position: 0 0, 13px 17px; }
+/* Fondo translúcido sin backdrop-filter para evitar desenfoque en cada fotograma */
+.nj-cristal { background-color: rgba(31, 27, 64, 0.88); }
+
+/* Botones interactivos */
+.nj-btn { border-radius: var(--radio-chico); transition: transform var(--trans), box-shadow var(--trans), background-color var(--trans), color var(--trans); }
+.nj-btn:hover { transform: translateY(-2px); }
+.nj-btn:active { transform: translateY(4px); box-shadow: none !important; }
+.nj-btn:focus-visible, .nj-foco:focus-visible { outline: 2px solid var(--acento); outline-offset: 3px; }
+.nj-btn[disabled] { cursor: not-allowed; opacity: .45; transform: none; }
+.nj-caja { border-radius: var(--radio); }
+.nj-fila { transition: background-color var(--trans); }
+.nj-fila:hover { background-color: rgba(79, 216, 232, 0.08); }
+.nj-fila:hover .nj-flecha { transform: translateX(4px); color: var(--acento); }
+.nj-flecha { transition: transform var(--trans), color var(--trans); }
+.nj-juego:focus { outline: none; }
+
+/* Fondo del HUD durante la partida */
+.nj-juego .nj-cristal { background-color: rgba(31, 27, 64, 0.88); }
+
+@keyframes nj-respira { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+.nj-respira { animation: nj-respira 2s ease-in-out infinite; }
+@keyframes nj-sube { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+.nj-sube { animation: nj-sube 260ms cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes nj-hoja-sube { from { opacity: 0; transform: translate3d(0, 100%, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+.nj-hoja-sube { animation: nj-hoja-sube 280ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes nj-sello { 0% { opacity: 0; transform: rotate(-6deg) scale(1.5); } 100% { opacity: 1; transform: rotate(-6deg) scale(1); } }
+.nj-sello { animation: nj-sello 320ms 200ms cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes nj-aviso { 0% { opacity: 0; transform: translate3d(0, -24px, 0); } 12%, 85% { opacity: 1; transform: translate3d(0, 0, 0); } 100% { opacity: 0; transform: translate3d(0, -12px, 0); } }
+.nj-aviso { animation: nj-aviso 2.6s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes nj-cielo-deriva { 0%, 100% { transform: translate3d(-10px, -6px, 0); } 50% { transform: translate3d(10px, 6px, 0); } }
+.nj-cielo-deriva { animation: nj-cielo-deriva 24s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+@keyframes nj-ciudad-fondo { 0%, 100% { transform: translate3d(-6px, 0, 0); } 50% { transform: translate3d(6px, 0, 0); } }
+.nj-ciudad-fondo { animation: nj-ciudad-fondo 20s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+@keyframes nj-ciudad-frente { 0%, 100% { transform: translate3d(10px, 0, 0); } 50% { transform: translate3d(-10px, 0, 0); } }
+.nj-ciudad-frente { animation: nj-ciudad-frente 15s ease-in-out infinite; will-change: transform; backface-visibility: hidden; }
+.nj-ventanas { opacity: .45; }
+@keyframes nj-bola-rebote {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1, 1);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.66, 0.33);
+  }
+  46% {
+    transform: translate3d(0, 48px, 0) scale(0.95, 1.05);
+    animation-timing-function: ease-out;
+  }
+  50% {
+    transform: translate3d(0, 52px, 0) scale(1.22, 0.78);
+    animation-timing-function: ease-in;
+  }
+  54% {
+    transform: translate3d(0, 46px, 0) scale(0.92, 1.08);
+    animation-timing-function: cubic-bezier(0.33, 0.66, 0.66, 1);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1, 1);
+  }
+}
+.nj-bola-rebote { animation: nj-bola-rebote 1.08s infinite; will-change: transform; backface-visibility: hidden; }
+@keyframes nj-plataforma-rebote {
+  0%, 45%, 62%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, 4px, 0); }
+}
+.nj-plataforma-rebote { animation: nj-plataforma-rebote 1.08s ease-out infinite; will-change: transform; }
+@keyframes nj-chispa-rebote {
+  0%, 47%, 100% { opacity: 0; transform: scale(.4); }
+  51% { opacity: .7; transform: scale(.75); }
+  70% { opacity: 0; transform: scale(1.4); }
+}
+.nj-chispa-rebote { animation: nj-chispa-rebote 1.08s ease-out infinite; transform-origin: 118px 98px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nj-respira, .nj-sube, .nj-hoja-sube, .nj-sello, .nj-aviso, .nj-cielo-deriva, .nj-ciudad-fondo, .nj-ciudad-frente, .nj-bola-rebote, .nj-plataforma-rebote, .nj-chispa-rebote { animation: none; }
+  .nj-btn, .nj-fila, .nj-flecha { transition: none; }
+}

@@ -1,0 +1,6 @@
+/* Ajustes de comportamiento táctil e integración del banner en la app nativa */
+html { -webkit-tap-highlight-color: transparent; }
+.nj-raiz { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.nj-raiz input, .nj-raiz textarea { -webkit-user-select: text; user-select: text; }
+/* Oculta el banner de respaldo cuando AdMob carga correctamente */
+.nj-admob-banner aside[aria-label="Espacio publicitario"] { visibility: hidden; }
