@@ -200,7 +200,7 @@
 
       return '<main class="nj-raiz" style="position:relative;width:390px;height:844px;overflow-x:hidden;overflow-y:auto;background:var(--tinta)">' +
         '<header style="display:flex;justify-content:space-between;align-items:center;padding:34px 20px 0 20px">' + Ui.Volver +
-        '<p style="margin:0;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;color:var(--hueso-3)">' + Ui.Escapar(Nj.Version || 'VERSIÓN 1.1.3') + '</p></header>' +
+        '<p style="margin:0;font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;color:var(--hueso-3)">' + Ui.Escapar(Nj.Version || 'VERSIÓN 1.1.4') + '</p></header>' +
         '<section style="display:grid;grid-template-columns:72px 1fr;gap:16px;align-items:end;padding:18px 20px 0 20px">' + Ui.Bola(Skin, 72, 'Tu skin: ' + Skin.Nombre) +
         '<h1 style="margin:0;' + Ui.Fuente.Titular + 'font-size:64px;line-height:.8">Perfil</h1></section>' +
 

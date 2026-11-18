@@ -18,7 +18,7 @@
     var Id = Secuencia++;
     return {
       Id: Id, Clave: Id, Tipo: Tipo, X: X, Y: Y, Base: X,
-      T: Entre(0, 6), Velocidad: Entre(1.3, 2.3), Rango: Entre(60, 120), Roto: 0, Golpe: 0,
+      T: Entre(0, 6), Velocidad: Entre(1.3, 2.3), Rango: Entre(60, 120), Roto: 0, Usada: 0, Golpe: 0,
       Normal: Tipo === 'Normal', Movil: Tipo === 'Movil', Fragil: Tipo === 'Fragil', Resorte: Tipo === 'Resorte',
       VistaX: Math.round(X - Anchoplataforma / 2), VistaY: Math.round(Y - Altoplataforma / 2), Opacidad: 1
     };
@@ -59,7 +59,7 @@
     var Base = (Basemetros || 0) * 10;
     var Partida = {
       Jugador: { X: Ancho / 2, Y: Cero, Vx: 0, Vy: 0, Sx: 1, Sy: 1, Rotacion: 0 },
-      Plataformas: [], Monedas: [], Chispas: [], Camara: 0, Maxaltura: 0, Puntaje: 0, Recogidas: 0,
+      Plataformas: [], Monedas: [], Chispas: [], Camara: 0, Camarameta: 0, Maxaltura: 0, Puntaje: 0, Recogidas: 0,
       Rebotes: { Normal: 0, Movil: 0, Fragil: 0, Resorte: 0 }, Tiempo: 0, Relojestela: 0, Base: Base, Piso: !Base,
       Estado: 'espera', Revividas: 0, Cima: Piso, Ultimax: Ancho / 2, Fondo: Nj.Crearfondo ? Nj.Crearfondo() : null,
       Zona: '', Avisozona: null
@@ -122,22 +122,27 @@
     if (Jugador.X > Ancho - Radio) { Jugador.X = Ancho - Radio; Jugador.Vx = 0; }
 
     Partida.Plataformas.forEach(function (Una) {
-      if (Una.Tipo === 'Movil') { Una.T += Delta; Una.X = Una.Base + Una.Rango * Math.sin(Una.T * Una.Velocidad); }
+      if (Una.Tipo === 'Movil' && !Una.Usada) { Una.T += Delta; Una.X = Una.Base + Una.Rango * Math.sin(Una.T * Una.Velocidad); }
       if (Una.Golpe > 0) Una.Golpe = Math.max(0, Una.Golpe - Delta * 5);
       if (Una.Roto) Una.Roto += Delta;
+      if (Una.Usada) Una.Usada += Delta;
     });
 
-    // Solo rebota cuando viene cayendo y cruza el borde de arriba de la plataforma
+    // Cada plataforma admite un único rebote para evitar quedarse reposando en ella
     if (Jugador.Vy > 0) {
       var Toco = false;
       for (var Indice = 0; Indice < Partida.Plataformas.length; Indice++) {
         var Una = Partida.Plataformas[Indice], Borde = Una.Y - Altoplataforma / 2;
-        if (Una.Roto) continue;
+        if (Una.Roto || Una.Usada) continue;
         if (Anterior + Radio <= Borde + 3 && Jugador.Y + Radio >= Borde && Math.abs(Jugador.X - Una.X) <= Anchoplataforma / 2 + Radio * 0.55) {
           Rebotar(Partida, Jugador, Borde, Una.Tipo, Una.Tipo === 'Resorte' ? 1.6 : 1);
           Una.Golpe = 1;
           Partida.Rebotes[Una.Tipo]++;
           if (Una.Tipo === 'Fragil') Una.Roto = 0.001;
+          else Una.Usada = 0.001;
+          var Meta = Una.Y - Alto * 0.72;
+          if (Meta < Partida.Camarameta) Partida.Camarameta = Meta;
+          Partida.Piso = false;
           Eventos.push({ Tipo: 'rebote', Plataforma: Una.Tipo });
           Toco = true;
           break;
@@ -157,17 +162,18 @@
         Partida.Recogidas++;
         Chispa(Partida, Moneda.X, Moneda.Y, '#F5C84C', 5, 120);
         Eventos.push({ Tipo: 'moneda' });
-      } else if (Moneda.Y - Partida.Camara < Alto + 60) {
+      } else if (Moneda.Y - Partida.Camara < Alto + 120) {
         Partida.Monedas[Monedasvivas++] = Moneda;
       }
     }
     Partida.Monedas.length = Monedasvivas;
 
-    // La cámara solo sube; si el jugador se le acerca mucho al borde, lo alcanza de una
-    var Camaraantes = Partida.Camara, Objetivo = Jugador.Y - Alto * 0.42;
+    // La cámara acompaña el ascenso en cada salto
+    var Camaraantes = Partida.Camara;
+    var Objetivo = Math.min(Jugador.Y - Alto * 0.62, Partida.Camarameta || 0);
     if (Objetivo < Partida.Camara) {
       Partida.Camara += (Objetivo - Partida.Camara) * (1 - Math.exp(-12 * Delta));
-      if (Jugador.Y < Partida.Camara + Alto * 0.12) Partida.Camara = Objetivo;
+      if (Jugador.Y < Partida.Camara + Alto * 0.14) Partida.Camara = Objetivo;
     }
     var Altura = Cero - Jugador.Y;
     if (Altura > Partida.Maxaltura) { Partida.Maxaltura = Altura; Partida.Puntaje = Math.floor(Altura / 2); }
@@ -182,7 +188,7 @@
     var Platvivas = 0;
     for (var Ip = 0; Ip < Partida.Plataformas.length; Ip++) {
       var Plat = Partida.Plataformas[Ip];
-      if (Plat.Y - Partida.Camara < Alto + 60 && Plat.Roto < 0.5) Partida.Plataformas[Platvivas++] = Plat;
+      if (Plat.Y - Partida.Camara < Alto + 60 && Plat.Roto < 0.5 && Plat.Usada < 0.35) Partida.Plataformas[Platvivas++] = Plat;
     }
     Partida.Plataformas.length = Platvivas;
     Generar(Partida);
@@ -243,8 +249,8 @@
     for (var Ip = 0; Ip < Partida.Plataformas.length; Ip++) {
       var Una = Partida.Plataformas[Ip];
       Una.VistaX = Math.round(Una.X - Anchoplataforma / 2);
-      Una.VistaY = Math.round(Una.Y - Altoplataforma / 2 + Una.Golpe * 4 + Una.Roto * 260);
-      Una.Opacidad = Una.Roto ? Math.max(0, 1 - Una.Roto * 2.2) : 1;
+      Una.VistaY = Math.round(Una.Y - Altoplataforma / 2 + Una.Golpe * 4 + Una.Roto * 260 + Una.Usada * 80);
+      Una.Opacidad = Una.Roto ? Math.max(0, 1 - Una.Roto * 2.2) : Una.Usada ? Math.max(0, 1 - Una.Usada * 3.0) : 1;
     }
     return {
       // La cámara mueve un solo contenedor; las piezas del mundo se actualizan en el lugar sin crear arreglos nuevos

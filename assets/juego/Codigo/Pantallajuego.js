@@ -55,7 +55,7 @@
         '<canvas data-g="Chispas" width="390" height="844" aria-hidden="true" style="position:absolute;left:0;top:0;width:390px;height:844px;pointer-events:none"></canvas>' +
         '<div data-g="Mundo" aria-hidden="true" style="position:absolute;left:0;top:0;width:390px;height:0;will-change:transform">' +
         '<div data-g="Regla" style="position:absolute;left:0;top:0;width:70px;height:844px"></div>' +
-        '<div data-g="Monedas"></div><div data-g="Plataformas"></div>' +
+        '<div data-g="Plataformas"></div><div data-g="Monedas"></div>' +
         '<div data-g="Jugador" style="position:absolute;left:0;top:0;width:30px;height:30px;transform-origin:50% 50%;will-change:transform">' + Ui.Bola(Skin, 30) + '</div></div>' +
         '<div data-g="Tactil" aria-hidden="true" style="position:absolute;inset:0;touch-action:none"></div>' +
         '<header style="position:absolute;left:0;top:0;right:0;height:164px;display:flex;justify-content:space-between;align-items:flex-start;padding:34px 20px 0 20px;pointer-events:none;background:linear-gradient(to bottom, rgba(22,19,46,.82) 40%, rgba(22,19,46,0))">' +
@@ -89,7 +89,7 @@
         }, function (Nodo, Marca) { Ui.Transformar(Nodo, 'translate3d(0,' + Marca.Y + 'px,0)'); });
       }
       Ui.Sincronizar(Refs.Monedas, Vista.Monedas, function () {
-        return '<div style="position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #FFE9A8 0%, #F5C84C 55%, #C9962E 100%);box-shadow:0 2px 0 #9E721D"></div>';
+        return '<div style="position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%, #FFE9A8 0%, #F5C84C 55%, #C9962E 100%);box-shadow:0 0 0 1.5px rgba(255,233,168,.55), 0 2px 0 #9E721D"></div>';
       }, function (Nodo, Moneda) { Mover(Nodo, Moneda.VistaX, Moneda.VistaY); });
       Ui.Sincronizar(Refs.Plataformas, Vista.Plataformas, function (Una) {
         var Tipo = Una.Movil ? 'Movil' : Una.Fragil ? 'Fragil' : Una.Resorte ? 'Resorte' : 'Normal';

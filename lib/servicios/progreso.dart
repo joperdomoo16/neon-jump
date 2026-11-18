@@ -168,7 +168,7 @@ class Progreso {
     }
     estado = sanearEstado(nuevo);
     relojGuardar?.cancel();
-    relojGuardar = Timer(const Duration(milliseconds: 400), escribir);
+    relojGuardar = Timer(const Duration(milliseconds: 100), escribir);
     relojNube?.cancel();
     relojNube = Timer(const Duration(seconds: 3), subirNube);
   }

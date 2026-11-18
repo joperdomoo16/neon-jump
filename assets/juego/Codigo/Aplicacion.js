@@ -100,6 +100,27 @@
     }, 2600);
   }
 
+  function Confirmarparcial(Actual) {
+    if (!Actual) return;
+    var Compromiso = Actual.Compromiso || { Recogidas: 0, Resorte: 0, Tiempo: 0 };
+    var Nuevas = Math.max(0, Actual.Recogidas - Compromiso.Recogidas);
+    var Nuevosres = Math.max(0, Actual.Rebotes.Resorte - Compromiso.Resorte);
+    var Nuevotiempo = Math.max(0, Actual.Tiempo - Compromiso.Tiempo);
+    if (!Nuevas && !Nuevosres && !Nuevotiempo && Actual.Puntaje <= Estado.Mejor &&
+        Actual.Recogidas <= Estado.Mejormonedaspartida && Actual.Rebotes.Movil <= Estado.Movilmax &&
+        Actual.Rebotes.Fragil <= Estado.Fragilmax) return;
+    Estado.Monedas += Nuevas;
+    Estado.Monedastotales += Nuevas;
+    Estado.Resortetotal += Nuevosres;
+    Estado.Segundosjugados += Nuevotiempo;
+    Estado.Mejor = Math.max(Estado.Mejor, Actual.Puntaje);
+    Estado.Mejormonedaspartida = Math.max(Estado.Mejormonedaspartida, Actual.Recogidas);
+    Estado.Movilmax = Math.max(Estado.Movilmax, Actual.Rebotes.Movil);
+    Estado.Fragilmax = Math.max(Estado.Fragilmax, Actual.Rebotes.Fragil);
+    Actual.Compromiso = { Recogidas: Actual.Recogidas, Resorte: Actual.Rebotes.Resorte, Tiempo: Actual.Tiempo };
+    Guardar();
+  }
+
   function Alcaer() {
     var Actual = Partida;
     Revisarlogros();
@@ -166,10 +187,10 @@
       Cambiar(function (Cambio) { Cambio.Pantalla = 'Juego'; Cambio.Partidas += 1; Cambio.Resultado = null; });
     },
     Empezar: function () { if (Partida && Partida.Estado === 'espera') { Partida.Estado = 'jugando'; Ultimo = 0; if (!Bucleactivo) { Bucleactivo = true; requestAnimationFrame(Bucle); } } },
-    Pausar: function () { if (Partida && Partida.Estado === 'jugando') { Partida.Estado = 'pausa'; Dibujar(); } },
+    Pausar: function () { if (Partida && Partida.Estado === 'jugando') { Confirmarparcial(Partida); Partida.Estado = 'pausa'; Dibujar(); } },
     Continuar: function () { if (Partida && Partida.Estado === 'pausa') { Partida.Estado = 'jugando'; Ultimo = 0; Dibujar(); } },
-    Reiniciar: function () { Acciones.Jugar(); },
-    Menu: function () { clearTimeout(Relojfin); Partida = null; Cambiar(function (Cambio) { Cambio.Pantalla = 'Menu'; Cambio.Aviso = null; }); },
+    Reiniciar: function () { Confirmarparcial(Partida); Acciones.Jugar(); },
+    Menu: function () { clearTimeout(Relojfin); Confirmarparcial(Partida); Partida = null; Cambiar(function (Cambio) { Cambio.Pantalla = 'Menu'; Cambio.Aviso = null; }); },
     Revivirmonedas: function () {
       if (Estado.Monedas < 100) return;
       Cambiar(function (Cambio) { Cambio.Monedas -= 100; });
@@ -236,6 +257,9 @@
         ObjetivoX: Entrada.ObjetivoX, Sensibilidad: Estado.Sensibilidad
       });
       if (Eventos.length) {
+        for (var Ev = 0; Ev < Eventos.length; Ev++) {
+          if (Eventos[Ev].Tipo === 'moneda') { Confirmarparcial(Partida); break; }
+        }
         if (Nj.Puente) {
           Nj.Puente.Eventos(Eventos);
         } else if (Nj.Audio) {

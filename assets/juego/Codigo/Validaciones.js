@@ -111,6 +111,6 @@
 
   Nj.Sanearversion = function (Version) {
     var Limpia = Texto(Version, 40).replace(/[^a-zA-Z0-9ÁÉÍÓÚáéíóúñÑ ._-]/g, '');
-    return Limpia || 'VERSIÓN 1.1.3';
+    return Limpia || 'VERSIÓN 1.1.4';
   };
 })();
